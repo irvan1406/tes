@@ -1,2 +1,71 @@
-<h1>Al-Vanda Wallet</h1>
-<p>Aplikasi aktif</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Al-Vanda Wallet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+
+<h1 class="text-xl font-bold mb-4">Al-Vanda Wallet</h1>
+
+<div id="login">
+  <input id="phone" class="border p-2 w-full mb-2" placeholder="+62xxxx">
+  <div id="recaptcha"></div>
+  <button onclick="sendOTP()" class="bg-blue-600 text-white p-2 w-full">Kirim OTP</button>
+</div>
+
+<div id="otp" class="hidden">
+  <input id="code" class="border p-2 w-full mb-2" placeholder="Kode OTP">
+  <button onclick="verifyOTP()" class="bg-green-600 text-white p-2 w-full">Verifikasi</button>
+</div>
+
+<div id="wallet" class="hidden">
+  <p>Saldo: <b id="saldo">Rp0</b></p>
+  <button onclick="alert('QRIS di langkah 2')" class="mt-2 bg-purple-600 text-white p-2 w-full">Top Up QRIS</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+firebase.initializeApp({
+  apiKey: "ISI_DARI_FIREBASE",
+  authDomain: "ISI_DARI_FIREBASE",
+  projectId: "ISI_DARI_FIREBASE"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+  'recaptcha', { size: 'invisible' }
+);
+
+function sendOTP(){
+  const phone = document.getElementById('phone').value;
+  auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+    .then(res => {
+      window.confirmationResult = res;
+      document.getElementById('login').classList.add('hidden');
+      document.getElementById('otp').classList.remove('hidden');
+      alert('OTP terkirim');
+    });
+}
+
+function verifyOTP(){
+  const code = document.getElementById('code').value;
+  window.confirmationResult.confirm(code).then(res=>{
+    db.collection('users').doc(res.user.uid)
+      .set({ saldo: 0 }, { merge:true });
+    document.getElementById('otp').classList.add('hidden');
+    document.getElementById('wallet').classList.remove('hidden');
+    document.getElementById('saldo').innerText = "Rp0";
+  });
+}
+</script>
+
+</body>
+  </html>
