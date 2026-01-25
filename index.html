@@ -1,71 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Al-Vanda Wallet</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 p-4">
+  <h1 class="text-xl font-bold mb-4">Al-Vanda Wallet</h1>
 
-<h1 class="text-xl font-bold mb-4">Al-Vanda Wallet</h1>
+  <!-- LOGIN -->
+  <section id="login">
+    <input id="phone" class="border p-2 w-full mb-2" placeholder="+628xxxxxxxxxx" />
+    <div id="recaptcha"></div>
+    <button onclick="sendOTP()" class="bg-blue-600 text-white p-2 w-full">
+      Kirim OTP
+    </button>
+  </section>
 
-<div id="login">
-  <input id="phone" class="border p-2 w-full mb-2" placeholder="+62xxxx">
-  <div id="recaptcha"></div>
-  <button onclick="sendOTP()" class="bg-blue-600 text-white p-2 w-full">Kirim OTP</button>
-</div>
+  <!-- OTP -->
+  <section id="otp" class="hidden mt-4">
+    <input id="otpCode" class="border p-2 w-full mb-2" placeholder="Kode OTP" />
+    <button onclick="verifyOTP()" class="bg-green-600 text-white p-2 w-full">
+      Verifikasi
+    </button>
+  </section>
 
-<div id="otp" class="hidden">
-  <input id="code" class="border p-2 w-full mb-2" placeholder="Kode OTP">
-  <button onclick="verifyOTP()" class="bg-green-600 text-white p-2 w-full">Verifikasi</button>
-</div>
+  <!-- SET PIN -->
+  <section id="setPin" class="hidden mt-4">
+    <input id="pin" type="password" maxlength="6" class="border p-2 w-full mb-2" placeholder="Buat PIN 6 digit" />
+    <button onclick="savePin()" class="bg-indigo-600 text-white p-2 w-full">
+      Simpan PIN
+    </button>
+  </section>
 
-<div id="wallet" class="hidden">
-  <p>Saldo: <b id="saldo">Rp0</b></p>
-  <button onclick="alert('QRIS di langkah 2')" class="mt-2 bg-purple-600 text-white p-2 w-full">Top Up QRIS</button>
-</div>
+  <!-- WALLET -->
+  <section id="wallet" class="hidden mt-4">
+    <p class="mb-2">Saldo: <b id="saldo">Rp0</b></p>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <input id="toPhone" class="border p-2 w-full mb-2" placeholder="Transfer ke +62..." />
+    <input id="amount" type="number" class="border p-2 w-full mb-2" placeholder="Jumlah" />
+    <input id="pinConfirm" type="password" maxlength="6" class="border p-2 w-full mb-2" placeholder="PIN" />
 
-<script>
-firebase.initializeApp({
-  apiKey: "ISI_DARI_FIREBASE",
-  authDomain: "ISI_DARI_FIREBASE",
-  projectId: "ISI_DARI_FIREBASE"
-});
+    <button onclick="transfer()" class="bg-purple-600 text-white p-2 w-full">
+      Transfer
+    </button>
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+    <button onclick="openAdmin()" class="mt-3 bg-gray-800 text-white p-2 w-full">
+      Admin Dashboard
+    </button>
+  </section>
 
-window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
-  'recaptcha', { size: 'invisible' }
-);
+  <!-- ADMIN -->
+  <section id="admin" class="hidden mt-4">
+    <h2 class="font-bold mb-2">Admin</h2>
+    <button onclick="alert('Admin fitur via Firestore Console / Functions')"
+      class="bg-red-600 text-white p-2 w-full">
+      Kelola User
+    </button>
+  </section>
 
-function sendOTP(){
-  const phone = document.getElementById('phone').value;
-  auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
-    .then(res => {
-      window.confirmationResult = res;
-      document.getElementById('login').classList.add('hidden');
-      document.getElementById('otp').classList.remove('hidden');
-      alert('OTP terkirim');
-    });
-}
+  <!-- FIREBASE SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-function verifyOTP(){
-  const code = document.getElementById('code').value;
-  window.confirmationResult.confirm(code).then(res=>{
-    db.collection('users').doc(res.user.uid)
-      .set({ saldo: 0 }, { merge:true });
-    document.getElementById('otp').classList.add('hidden');
-    document.getElementById('wallet').classList.remove('hidden');
-    document.getElementById('saldo').innerText = "Rp0";
-  });
-}
-</script>
+  <script>
+    /* =====================================================
+       🔴 KONFIG FIREBASE — GANTI SENDIRI (JANGAN KIRIM KE CHAT)
+       ===================================================== */
+    const firebaseConfig = {
+  apiKey: "AIzaSyBRFCnDH7WxmCDaN98VNW2ZzvEpogUBW9o",
+  authDomain: "al-vanda-wallet.firebaseapp.com",
+  projectId: "al-vanda-wallet",
+  storageBucket: "al-vanda-wallet.firebasestorage.app",
+  messagingSenderId: "719235487688",
+  appId: "1:719235487688:web:dd139ec6d00ab352f8d2fd",
+  measurementId: "G-6C9ZV00BXT"
+};
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
+    // reCAPTCHA
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
+      "recaptcha",
+      { size: "invisible" }
+    );
+
+    function show(id) {
+      ["login","otp","setPin","wallet","admin"].forEach(x =>
+        document.getElementById(x).classList.add("hidden")
+      );
+      document.getElementById(id).classList.remove("hidden");
+    }
+
+    function sendOTP() {
+      const phone = document.getElementById("phone").value;
+      auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+        .then(r => {
+          window.confirmationResult = r;
+          show("otp");
+          alert("OTP dikirim");
+        })
+        .catch(e => alert(e.message));
+    }
+
+    function verifyOTP() {
+      const code = document.getElementById("otpCode").value;
+      window.confirmationResult.confirm(code).then(res => {
+        window.uid = res.user.uid;
+        db.collection("users").doc(uid).get().then(snap => {
+          if (!snap.exists || !snap.data().pin) show("setPin");
+          else loadWallet();
+        });
+      }).catch(()=>alert("OTP salah"));
+    }
+
+    function savePin() {
+      const pin = document.getElementById("pin").value;
+      db.collection("users").doc(uid).set({
+        pin, saldo: 0, role: "user"
+      }, { merge: true }).then(loadWallet);
+    }
+
+    function loadWallet() {
+      db.collection("users").doc(uid).onSnapshot(snap => {
+        document.getElementById("saldo").innerText =
+          "Rp" + (snap.data().saldo || 0).toLocaleString("id-ID");
+        show("wallet");
+      });
+    }
+
+    function transfer() {
+      alert("Transfer real harus via Cloud Functions (atomic)");
+    }
+
+    function openAdmin() {
+      db.collection("users").doc(uid).get().then(snap => {
+        if (snap.data().role === "admin") show("admin");
+        else alert("Bukan admin");
+      });
+    }
+  </script>
 </body>
-  </html>
+</html>
