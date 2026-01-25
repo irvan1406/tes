@@ -1,147 +1,317 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <title>Al-Vanda Wallet</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Al-Vanda Wallet</title>
+    
+    <!-- PWA Manifest & Meta -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Dompet Digital Aman & Terpercaya">
+    <link rel="manifest" href="/manifest.json">
 
-<body class="bg-gray-100 p-4">
-  <h1 class="text-xl font-bold mb-4">Al-Vanda Wallet</h1>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f172a', // Slate 900
+                        secondary: '#0ea5e9', // Sky 500
+                        accent: '#fbbf24', // Amber 400
+                        success: '#10b981',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
 
-  <!-- LOGIN -->
-  <section id="login">
-    <input id="phone" class="border p-2 w-full mb-2" placeholder="+628xxxxxxxxxx" />
-    <div id="recaptcha"></div>
-    <button onclick="sendOTP()" class="bg-blue-600 text-white p-2 w-full">
-      Kirim OTP
-    </button>
-  </section>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-  <!-- OTP -->
-  <section id="otp" class="hidden mt-4">
-    <input id="otpCode" class="border p-2 w-full mb-2" placeholder="Kode OTP" />
-    <button onclick="verifyOTP()" class="bg-green-600 text-white p-2 w-full">
-      Verifikasi
-    </button>
-  </section>
+    <!-- Firebase SDK (Modular - Lebih Cepat & Aman) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
-  <!-- SET PIN -->
-  <section id="setPin" class="hidden mt-4">
-    <input id="pin" type="password" maxlength="6" class="border p-2 w-full mb-2" placeholder="Buat PIN 6 digit" />
-    <button onclick="savePin()" class="bg-indigo-600 text-white p-2 w-full">
-      Simpan PIN
-    </button>
-  </section>
+        // --- CONFIG KAMU (SUDAH SAYA MASUKKAN) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBRFCnDH7WxmCDaN98VNW2ZzvEpogUBW9o",
+            authDomain: "al-vanda-wallet.firebaseapp.com",
+            projectId: "al-vanda-wallet",
+            storageBucket: "al-vanda-wallet.firebasestorage.app",
+            messagingSenderId: "719235487688",
+            appId: "1:719235487688:web:dd139ec6d00ab352f8d2fd",
+            measurementId: "G-6C9ZV00BXT"
+        };
 
-  <!-- WALLET -->
-  <section id="wallet" class="hidden mt-4">
-    <p class="mb-2">Saldo: <b id="saldo">Rp0</b></p>
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const functions = getFunctions(app, 'asia-southeast2'); // Pastikan region sesuai saat deploy functions
+        auth.languageCode = 'id';
 
-    <input id="toPhone" class="border p-2 w-full mb-2" placeholder="Transfer ke +62..." />
-    <input id="amount" type="number" class="border p-2 w-full mb-2" placeholder="Jumlah" />
-    <input id="pinConfirm" type="password" maxlength="6" class="border p-2 w-full mb-2" placeholder="PIN" />
+        // --- STATE MANAGEMENT ---
+        const state = {
+            user: null,
+            profile: null,
+            balance: 0,
+            view: 'splash',
+            transactions: [],
+            isLoading: false
+        };
 
-    <button onclick="transfer()" class="bg-purple-600 text-white p-2 w-full">
-      Transfer
-    </button>
+        const appDiv = document.getElementById('app');
+        const modalDiv = document.getElementById('modal-layer');
 
-    <button onclick="openAdmin()" class="mt-3 bg-gray-800 text-white p-2 w-full">
-      Admin Dashboard
-    </button>
-  </section>
+        // --- UTILS ---
+        const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
 
-  <!-- ADMIN -->
-  <section id="admin" class="hidden mt-4">
-    <h2 class="font-bold mb-2">Admin</h2>
-    <button onclick="alert('Admin fitur via Firestore Console / Functions')"
-      class="bg-red-600 text-white p-2 w-full">
-      Kelola User
-    </button>
-  </section>
+        const showLoading = (show) => {
+            state.isLoading = show;
+            render();
+        };
 
-  <!-- FIREBASE SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+        const showToast = (msg, type = 'info') => {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-5 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-white text-sm z-50 animate-bounce ${type === 'error' ? 'bg-danger' : 'bg-success'}`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
 
-  <script>
-    /* =====================================================
-       🔴 KONFIG FIREBASE — GANTI SENDIRI (JANGAN KIRIM KE CHAT)
-       ===================================================== */
-    const firebaseConfig = {
-  apiKey: "AIzaSyBRFCnDH7WxmCDaN98VNW2ZzvEpogUBW9o",
-  authDomain: "al-vanda-wallet.firebaseapp.com",
-  projectId: "al-vanda-wallet",
-  storageBucket: "al-vanda-wallet.firebasestorage.app",
-  messagingSenderId: "719235487688",
-  appId: "1:719235487688:web:dd139ec6d00ab352f8d2fd",
-  measurementId: "G-6C9ZV00BXT"
-};
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+        // --- VIEWS ---
+        const views = {
+            splash: () => `
+                <div class="h-screen flex flex-col items-center justify-center bg-primary text-white">
+                    <i class="ph-fill ph-wallet text-6xl text-secondary mb-4"></i>
+                    <h1 class="text-2xl font-bold tracking-wider">AL-VANDA</h1>
+                    <div class="mt-8 animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-secondary"></div>
+                </div>
+            `,
+            login: () => `
+                <div class="min-h-screen bg-slate-50 p-6 flex flex-col justify-center">
+                    <div class="text-center mb-8">
+                        <i class="ph-duotone ph-shield-check text-5xl text-primary"></i>
+                        <h2 class="text-2xl font-bold text-gray-800 mt-2">Masuk</h2>
+                        <p class="text-gray-500 text-sm">Gunakan nomor HP aktif Anda</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nomor HP</label>
+                        <div class="flex">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">+62</span>
+                            <input type="tel" id="phone-input" class="flex-1 block w-full rounded-none rounded-r-md border-gray-300 p-2 border" placeholder="8123456789">
+                        </div>
+                        <div id="recaptcha-container" class="mt-4"></div>
+                        <button onclick="handleSendOTP()" class="w-full mt-6 bg-primary text-white py-3 rounded-lg font-bold shadow-lg">Kirim OTP</button>
+                    </div>
+                </div>
+            `,
+            otp: () => `
+                <div class="min-h-screen bg-slate-50 p-6 flex flex-col justify-center">
+                    <h2 class="text-2xl font-bold text-center mb-6">Verifikasi OTP</h2>
+                    <input type="text" id="otp-input" class="w-full text-center text-3xl tracking-[1rem] p-4 border rounded-xl mb-6" maxlength="6" placeholder="000000">
+                    <button onclick="handleVerifyOTP()" class="w-full bg-secondary text-white py-3 rounded-lg font-bold shadow-lg">Verifikasi</button>
+                </div>
+            `,
+            setupPin: () => `
+                <div class="min-h-screen bg-white p-6 flex flex-col justify-center">
+                    <h2 class="text-2xl font-bold text-center mb-2">Buat PIN Baru</h2>
+                    <p class="text-center text-gray-500 mb-8">PIN ini untuk keamanan transaksi (disimpan aman di server).</p>
+                    <input type="password" id="pin-setup" class="w-full text-center text-4xl p-4 border-b-2 border-gray-200 focus:border-primary outline-none mb-8" maxlength="6" inputmode="numeric">
+                    <button onclick="handleSavePin()" class="w-full bg-primary text-white py-3 rounded-lg font-bold">Simpan PIN</button>
+                </div>
+            `,
+            dashboard: () => `
+                <div class="pb-24 bg-slate-50 min-h-screen">
+                    <div class="bg-primary text-white p-6 rounded-b-3xl shadow-lg relative overflow-hidden">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <p class="text-slate-400 text-xs">Halo,</p>
+                                <h3 class="font-bold text-lg">${state.profile?.phoneNumber || 'User'}</h3>
+                            </div>
+                            <button onclick="handleLogout()" class="bg-slate-700 p-2 rounded-full"><i class="ph ph-sign-out text-xl"></i></button>
+                        </div>
+                        <div class="mb-4">
+                            <p class="text-slate-400 text-sm mb-1">Saldo Aktif</p>
+                            <h1 class="text-3xl font-bold tracking-tight">${formatRupiah(state.balance)}</h1>
+                        </div>
+                        <div class="flex justify-between mt-6 px-2">
+                            <button onclick="renderView('topup')" class="flex flex-col items-center gap-2"><div class="bg-secondary p-3 rounded-xl shadow-lg"><i class="ph-bold ph-plus text-white text-xl"></i></div><span class="text-xs">Top Up</span></button>
+                            <button onclick="renderView('transfer')" class="flex flex-col items-center gap-2"><div class="bg-secondary p-3 rounded-xl shadow-lg"><i class="ph-bold ph-paper-plane-right text-white text-xl"></i></div><span class="text-xs">Kirim</span></button>
+                            <button onclick="renderView('history')" class="flex flex-col items-center gap-2"><div class="bg-slate-700 p-3 rounded-xl shadow-lg"><i class="ph-bold ph-clock-counter-clockwise text-white text-xl"></i></div><span class="text-xs">Riwayat</span></button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-bold text-gray-800 mb-4 text-lg">Mutasi Terakhir</h3>
+                        <div class="space-y-3">
+                            ${state.transactions.length === 0 ? '<p class="text-gray-400 text-center text-sm">Belum ada transaksi.</p>' : ''}
+                            ${state.transactions.map(tx => renderTxItem(tx)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `,
+            transfer: () => `
+                <div class="min-h-screen bg-slate-50 flex flex-col">
+                    <div class="bg-white p-4 shadow-sm flex items-center gap-3">
+                        <button onclick="renderView('dashboard')"><i class="ph-bold ph-arrow-left text-xl"></i></button>
+                        <h2 class="font-bold text-lg">Transfer Saldo</h2>
+                    </div>
+                    <div class="p-6 flex-1">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tujuan</label>
+                        <div class="flex mb-4">
+                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 text-sm">+62</span>
+                            <input type="tel" id="tf-dest" class="flex-1 p-3 border rounded-r-lg" placeholder="812...">
+                        </div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Jumlah</label>
+                        <input type="number" id="tf-amount" class="w-full p-3 border rounded-lg mb-6 text-xl font-bold" placeholder="0">
+                        <button onclick="initiateTransfer()" class="w-full bg-primary text-white py-4 rounded-xl font-bold shadow-lg mt-auto">Lanjut</button>
+                    </div>
+                </div>
+            `,
+            topup: () => `
+                <div class="min-h-screen bg-slate-50 flex flex-col">
+                    <div class="bg-white p-4 shadow-sm flex items-center gap-3">
+                        <button onclick="renderView('dashboard')"><i class="ph-bold ph-arrow-left text-xl"></i></button>
+                        <h2 class="font-bold text-lg">Top Up (Midtrans)</h2>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-gray-600 mb-4 text-sm">Pilih nominal Top Up</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            ${[10000, 20000, 50000, 100000].map(amt => `<button onclick="selectTopUp(${amt})" class="bg-white border p-4 rounded-xl hover:bg-sky-50 font-bold">${formatRupiah(amt)}</button>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `,
+            pinPrompt: (callbackName) => `
+                <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div class="bg-white w-full max-w-sm rounded-2xl p-6">
+                        <div class="flex justify-between items-center mb-6"><h3 class="font-bold text-lg">Masukkan PIN</h3><button onclick="closeModal()"><i class="ph-bold ph-x"></i></button></div>
+                        <input type="password" id="pin-confirm" class="w-full text-center text-4xl p-2 mb-6 border-b focus:border-primary outline-none" maxlength="6" inputmode="numeric" autofocus>
+                        <button onclick="${callbackName}()" class="w-full bg-primary text-white py-3 rounded-lg font-bold">Konfirmasi</button>
+                    </div>
+                </div>
+            `
+        };
 
-    // reCAPTCHA
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(
-      "recaptcha",
-      { size: "invisible" }
-    );
+        const renderTxItem = (tx) => {
+            const isCredit = tx.type === 'topup' || tx.toUid === state.user.uid;
+            return `<div class="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-gray-50">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-100 p-2 rounded-full"><i class="ph-bold ${isCredit ? 'ph-arrow-down-left text-success' : 'ph-arrow-up-right text-danger'}"></i></div>
+                    <div><p class="font-bold text-gray-800 text-sm">${isCredit ? 'Uang Masuk' : 'Uang Keluar'}</p><p class="text-xs text-gray-400">${new Date(tx.createdAt?.toDate()).toLocaleDateString()}</p></div>
+                </div>
+                <span class="font-bold ${isCredit ? 'text-success' : 'text-danger'} text-sm">${isCredit ? '+' : '-'} ${formatRupiah(tx.amount)}</span>
+            </div>`;
+        };
 
-    function show(id) {
-      ["login","otp","setPin","wallet","admin"].forEach(x =>
-        document.getElementById(x).classList.add("hidden")
-      );
-      document.getElementById(id).classList.remove("hidden");
-    }
+        // --- CORE FUNCTIONS ---
+        function render() {
+            if(state.isLoading) { appDiv.innerHTML += `<div class="fixed inset-0 bg-white/50 z-[60] flex items-center justify-center"><div class="animate-spin rounded-full h-10 w-10 border-4 border-secondary border-t-transparent"></div></div>`; return; }
+            if (views[state.view]) appDiv.innerHTML = views[state.view]();
+        }
+        window.renderView = (v) => { state.view = v; render(); };
+        window.closeModal = () => { modalDiv.innerHTML = ''; };
 
-    function sendOTP() {
-      const phone = document.getElementById("phone").value;
-      auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
-        .then(r => {
-          window.confirmationResult = r;
-          show("otp");
-          alert("OTP dikirim");
-        })
-        .catch(e => alert(e.message));
-    }
-
-    function verifyOTP() {
-      const code = document.getElementById("otpCode").value;
-      window.confirmationResult.confirm(code).then(res => {
-        window.uid = res.user.uid;
-        db.collection("users").doc(uid).get().then(snap => {
-          if (!snap.exists || !snap.data().pin) show("setPin");
-          else loadWallet();
+        // AUTH & DATA LISTENER
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                state.user = user;
+                onSnapshot(doc(db, "users", user.uid), (doc) => {
+                    if (doc.exists()) {
+                        state.profile = doc.data();
+                        state.balance = state.profile.balance || 0;
+                        if (!state.profile.hasPin) renderView('setupPin');
+                        else if (['login', 'otp', 'splash'].includes(state.view)) renderView('dashboard');
+                        else render();
+                    } else renderView('setupPin'); // New User
+                });
+                // Transaction Listener
+                const q = query(collection(db, "transactions"), where("participants", "array-contains", user.uid), orderBy("createdAt", "desc"), limit(10));
+                onSnapshot(q, (snap) => { state.transactions = snap.docs.map(d => d.data()); render(); });
+            } else {
+                state.user = null;
+                renderView('login');
+                setTimeout(() => { if(!window.recaptchaVerifier) { window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {'size': 'normal'}); window.recaptchaVerifier.render(); } }, 1000);
+            }
         });
-      }).catch(()=>alert("OTP salah"));
-    }
 
-    function savePin() {
-      const pin = document.getElementById("pin").value;
-      db.collection("users").doc(uid).set({
-        pin, saldo: 0, role: "user"
-      }, { merge: true }).then(loadWallet);
-    }
+        // HANDLERS
+        window.handleSendOTP = async () => {
+            const phone = document.getElementById('phone-input').value;
+            const fullPhone = phone.startsWith('0') ? '+62' + phone.slice(1) : '+62' + phone;
+            showLoading(true);
+            try {
+                window.confirmationResult = await signInWithPhoneNumber(auth, fullPhone, window.recaptchaVerifier);
+                showLoading(false); renderView('otp');
+            } catch (e) { showLoading(false); showToast(e.message, 'error'); }
+        };
 
-    function loadWallet() {
-      db.collection("users").doc(uid).onSnapshot(snap => {
-        document.getElementById("saldo").innerText =
-          "Rp" + (snap.data().saldo || 0).toLocaleString("id-ID");
-        show("wallet");
-      });
-    }
+        window.handleVerifyOTP = async () => {
+            const code = document.getElementById('otp-input').value;
+            showLoading(true);
+            try { await window.confirmationResult.confirm(code); } 
+            catch (e) { showLoading(false); showToast('Kode Salah', 'error'); }
+        };
 
-    function transfer() {
-      alert("Transfer real harus via Cloud Functions (atomic)");
-    }
+        window.handleLogout = () => signOut(auth);
 
-    function openAdmin() {
-      db.collection("users").doc(uid).get().then(snap => {
-        if (snap.data().role === "admin") show("admin");
-        else alert("Bukan admin");
-      });
-    }
-  </script>
+        // --- SECURE FUNCTIONS CALLS (Backend) ---
+        
+        window.handleSavePin = async () => {
+            const pin = document.getElementById('pin-setup').value;
+            if(pin.length !== 6) return showToast('PIN harus 6 digit', 'error');
+            showLoading(true);
+            try {
+                const fn = httpsCallable(functions, 'setUserPin');
+                await fn({ pin });
+                showLoading(false);
+            } catch (e) { showLoading(false); showToast(e.message, 'error'); }
+        };
+
+        let transferPayload = {};
+        window.initiateTransfer = () => {
+            const dest = document.getElementById('tf-dest').value;
+            const amount = document.getElementById('tf-amount').value;
+            if(!dest || amount < 10000) return showToast('Minimal 10.000', 'error');
+            transferPayload = { dest: (dest.startsWith('0') ? '+62' + dest.slice(1) : '+62' + dest), amount: parseInt(amount) };
+            modalDiv.innerHTML = views.pinPrompt('executeTransfer');
+        };
+
+        window.executeTransfer = async () => {
+            const pin = document.getElementById('pin-confirm').value;
+            closeModal(); showLoading(true);
+            try {
+                const fn = httpsCallable(functions, 'transferFunds');
+                const res = await fn({ toPhone: transferPayload.dest, amount: transferPayload.amount, pin });
+                showLoading(false);
+                showToast('Transfer Berhasil!', 'success');
+                renderView('dashboard');
+            } catch (e) { showLoading(false); showToast(e.message, 'error'); }
+        };
+
+        window.selectTopUp = async (amount) => {
+            showLoading(true);
+            try {
+                const fn = httpsCallable(functions, 'createTopUp');
+                const res = await fn({ amount });
+                showLoading(false);
+                window.open(res.data.redirect_url, '_blank'); // Buka Midtrans
+            } catch (e) { showLoading(false); showToast(e.message, 'error'); }
+        };
+
+        // Start
+        renderView('splash');
+    </script>
+    <style>body{font-family:'Inter',sans-serif;}</style>
+</head>
+<body class="bg-slate-100 text-gray-800">
+    <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-2xl overflow-hidden relative"></div>
+    <div id="modal-layer" class="relative z-50"></div>
 </body>
 </html>
