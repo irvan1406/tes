@@ -3,587 +3,611 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Projector Clock - Realtime Display</title>
-    <!-- Font Google: Rubik (Tebal & Modern untuk layar besar) -->
+    <title>Ultimate Projector Clock - Admin Mode</title>
+    
+    <!-- Load Font Keren -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;500;700&family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&family=Lora:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
     
     <style>
         /* =========================================
-           RESET & CORE STYLES
+           KONFIGURASI CSS VARIABLE (DINAMIS)
            ========================================= */
         :root {
-            --text-primary: #ffffff;
-            --text-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            --bg-transition: background 3s ease-in-out;
+            /* Warna & Tampilan */
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --shadow-color: rgba(0,0,0,0.5);
+            --shadow-blur: 0px;
+            
+            /* Tipografi */
+            --font-family: 'Rubik', sans-serif;
+            --clock-size: 25vw;
+            --clock-weight: 700;
+            --letter-spacing: -5px;
+            
+            /* Info Tambahan */
+            --date-size: 2vw;
+            --date-color: #aaaaaa;
+            --date-display: none; /* block/none */
+            
+            /* Running Text */
+            --marquee-size: 3vw;
+            --marquee-color: #ffcc00;
+            --marquee-bg: #111111;
+            --marquee-display: none; /* flex/none */
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none; /* Mencegah blok teks */
-            cursor: none; /* Sembunyikan kursor (gerakkan mouse untuk memunculkan) */
+            user-select: none;
         }
 
-        body:hover { cursor: default; }
-
         body {
-            font-family: 'Rubik', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
             height: 100vh;
             width: 100vw;
             overflow: hidden;
-            background-color: #1a1a1a;
-            color: var(--text-primary);
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            position: relative;
-            transition: var(--bg-transition);
+            transition: background 0.3s;
         }
 
         /* =========================================
-           DYNAMIC BACKGROUND LAYERS
+           KOMPONEN JAM UTAMA
            ========================================= */
-        /* Layer 1: Warna Dasar (Waktu) */
-        #bg-gradient {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -3;
-            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
-            transition: opacity 2s ease;
-        }
-
-        /* Layer 2: Overlay Cuaca (Mendung/Hujan) */
-        #weather-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            z-index: -2;
-            background: transparent;
-            pointer-events: none;
-            transition: background 2s ease;
-        }
-
-        /* Layer 3: Canvas Animasi (Hujan/Bintang) */
-        #particle-canvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: -1;
-        }
-
-        /* Layer 4: Efek Kilat (Petir) */
-        #flash-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: white;
-            opacity: 0;
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        /* =========================================
-           MAIN DISPLAY (CLOCK)
-           ========================================= */
-        .container {
+        .clock-container {
             text-align: center;
             z-index: 5;
-            padding: 20px;
-            /* Glassmorphism agar teks terbaca di background apapun */
-            background: rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(5px); 
-            border-radius: 30px;
-            width: 90vw;
-            max-width: 1400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .time-wrapper {
-            line-height: 1;
-            margin-bottom: 10px;
+            position: relative;
         }
 
         #clock {
-            font-size: 18vw; /* Ukuran dinamis mengikuti lebar layar */
-            font-weight: 700;
-            letter-spacing: -5px;
-            text-shadow: var(--text-shadow);
-            font-variant-numeric: tabular-nums; /* Angka tidak bergeser */
+            font-size: var(--clock-size);
+            font-weight: var(--clock-weight);
+            letter-spacing: var(--letter-spacing);
+            text-shadow: 4px 4px var(--shadow-blur) var(--shadow-color);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
         }
 
-        .date-wrapper {
-            font-size: 2.5vw;
+        /* Animasi Berkedip pada Titik Dua (:) */
+        .blink-animation {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+        #date-display {
+            font-size: var(--date-size);
+            color: var(--date-color);
+            margin-top: 10px;
             font-weight: 300;
+            display: var(--date-display);
             text-transform: uppercase;
-            letter-spacing: 5px;
-            margin-bottom: 40px;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            opacity: 0.9;
+            letter-spacing: 2px;
         }
 
         /* =========================================
-           WEATHER INFO BAR
+           RUNNING TEXT (MARQUEE)
            ========================================= */
-        .weather-info {
-            display: inline-flex;
-            align-items: center;
-            gap: 20px;
-            background: rgba(255, 255, 255, 0.15);
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 1.5rem;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: opacity 0.5s;
-        }
-
-        .weather-icon {
-            font-size: 2.5rem;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-        }
-
-        .weather-text {
-            font-weight: 500;
-            text-align: left;
-        }
-
-        .weather-detail {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            display: block;
-            margin-top: 2px;
-        }
-
-        .separator {
-            width: 1px;
-            height: 40px;
-            background: rgba(255,255,255,0.3);
-        }
-
-        /* =========================================
-           ANIMATIONS & UTILS
-           ========================================= */
-        @keyframes thunder-flash {
-            0% { opacity: 0; }
-            5% { opacity: 0.8; }
-            10% { opacity: 0; }
-            15% { opacity: 0.4; }
-            100% { opacity: 0; }
-        }
-
-        .flash-active {
-            animation: thunder-flash 0.8s ease-out;
-        }
-
-        /* Tombol Fullscreen (Pojok Kanan Bawah) */
-        .fullscreen-btn {
+        .marquee-container {
             position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--marquee-bg);
+            color: var(--marquee-color);
+            font-size: var(--marquee-size);
+            padding: 10px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            display: var(--marquee-display);
+            z-index: 10;
+        }
+
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 20s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+
+        /* =========================================
+           TOMBOL ADMIN TERSEMBUNYI
+           ========================================= */
+        .admin-trigger {
+            position: fixed;
+            top: 0;
+            right: 0;
             width: 50px;
             height: 50px;
+            z-index: 999;
+            cursor: pointer;
+            opacity: 0; /* Tidak terlihat tapi bisa diklik */
+        }
+        
+        /* Hint saat hover agar admin tau posisinya */
+        .admin-trigger:hover {
+            background: rgba(255,255,255,0.1); 
+            opacity: 1;
+        }
+
+        /* =========================================
+           ADMIN DASHBOARD (MODAL)
+           ========================================= */
+        #admin-panel {
+            display: none; /* Hidden default */
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'Segoe UI', sans-serif; /* Font UI standar untuk admin */
+            color: #fff;
+        }
+
+        .panel-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+        }
+
+        .close-btn {
+            background: #ff4444;
+            border: none;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Grid Layout untuk Controls */
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .control-group h4 {
+            color: #aaa;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85rem;
+            color: #ddd;
+        }
+
+        input[type="range"], input[type="text"], select, input[type="color"] {
+            width: 100%;
+            margin-bottom: 10px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        input[type="color"] {
+            height: 40px;
+            padding: 2px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-warning { background: #ffbb00; color: black; }
+        
+        /* Tombol Fullscreen di pojok kiri bawah (kecil) */
+        .fs-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            opacity: 0.1;
+            background: white;
+            width: 40px; 
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            z-index: 100;
-            opacity: 0.4;
-            transition: all 0.3s;
-            font-size: 1.5rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
-        .fullscreen-btn:hover { opacity: 1; background: rgba(255,255,255,0.3); }
+        .fs-btn:hover { opacity: 0.8; }
 
-        /* Mobile Responsive Adjustments */
-        @media (max-width: 600px) {
-            #clock { font-size: 20vw; letter-spacing: -2px; }
-            .date-wrapper { font-size: 5vw; letter-spacing: 2px; margin-bottom: 20px; }
-            .weather-info { 
-                padding: 10px 20px; 
-                font-size: 1rem; 
-                width: 95%; 
-                justify-content: center; 
-                flex-wrap: wrap;
-            }
-            .separator { display: none; }
-        }
     </style>
 </head>
 <body>
 
-    <!-- VISUAL BACKGROUND SYSTEM -->
-    <div id="bg-gradient"></div>
-    <div id="weather-overlay"></div> 
-    <canvas id="particle-canvas"></canvas> 
-    <div id="flash-overlay"></div>
+    <!-- TRIGGER ADMIN (Pojok Kanan Atas - Klik 3x Cepat atau Tahan Lama) -->
+    <div class="admin-trigger" id="admin-trigger" title="Klik 3x untuk Admin">⚙️</div>
 
-    <!-- MAIN UI -->
-    <div class="container">
-        <!-- Jam -->
-        <div class="time-wrapper">
-            <div id="clock">00:00:00</div>
+    <!-- UTAMA: JAM & TANGGAL -->
+    <div class="clock-container">
+        <div id="clock">
+            <span id="h">00</span><span class="sep">:</span><span id="m">00</span><span class="sep">:</span><span id="s">00</span>
         </div>
-        <!-- Tanggal -->
-        <div class="date-wrapper">
-            <span id="date">MEMUAT TANGGAL...</span>
-        </div>
-        
-        <!-- Info Cuaca -->
-        <div class="weather-info" id="weather-box">
-            <!-- Lokasi -->
-            <div style="text-align: right;">
-                <div id="location-name" style="font-weight: 700;">Lokasi</div>
-                <div id="coords" style="font-size: 0.7rem; opacity: 0.6;">GPS Aktif</div>
+        <div id="date-display">Senin, 1 Januari 2026</div>
+    </div>
+
+    <!-- RUNNING TEXT -->
+    <div class="marquee-container" id="marquee-wrap">
+        <div class="marquee-content" id="marquee-text">Selamat Datang di Masjid Agung - Mohon HP di-silent selama ibadah.</div>
+    </div>
+
+    <!-- TOMBOL FULLSCREEN -->
+    <button class="fs-btn" onclick="toggleFullscreen()"></button>
+
+
+    <!-- =========================================
+         ADMIN PANEL (HIDDEN)
+         ========================================= -->
+    <div id="admin-panel">
+        <div class="panel-content">
+            <div class="panel-header">
+                <h2>🎛️ Control Center</h2>
+                <button class="close-btn" onclick="closeAdmin()">TUTUP (ESC)</button>
             </div>
 
-            <div class="separator"></div>
+            <!-- TAB 1: TAMPILAN UTAMA -->
+            <div class="control-grid">
+                <div class="control-group">
+                    <h4>Warna & Latar</h4>
+                    <label>Background Color</label>
+                    <input type="color" id="inp-bg-color" oninput="updateConfig('bgColor', this.value)">
+                    
+                    <label>Text Color</label>
+                    <input type="color" id="inp-text-color" oninput="updateConfig('textColor', this.value)">
+                    
+                    <label>Shadow Color</label>
+                    <input type="color" id="inp-shadow-color" oninput="updateConfig('shadowColor', this.value)">
+                </div>
 
-            <!-- Ikon & Suhu -->
-            <span class="weather-icon" id="w-icon">⌛</span>
-            
-            <div class="weather-text">
-                <span id="temperature" style="font-size: 1.8rem; font-weight: 700;">--</span>°C
-                <span id="condition" class="weather-detail">Memuat Data...</span>
+                <div class="control-group">
+                    <h4>Tipografi Jam</h4>
+                    <label>Jenis Font</label>
+                    <select id="inp-font" onchange="updateConfig('fontFamily', this.value)">
+                        <option value="'Rubik', sans-serif">Rubik (Modern)</option>
+                        <option value="'Orbitron', sans-serif">Orbitron (Digital/Sci-Fi)</option>
+                        <option value="'Roboto Mono', monospace">Mono (Koding)</option>
+                        <option value="'Lora', serif">Lora (Elegan)</option>
+                    </select>
+
+                    <label>Ukuran Jam</label>
+                    <input type="range" min="10" max="40" id="inp-size" oninput="updateConfig('clockSize', this.value)">
+                    
+                    <label>Ketebalan (Bold)</label>
+                    <input type="range" min="100" max="900" step="100" id="inp-weight" oninput="updateConfig('clockWeight', this.value)">
+                </div>
+
+                <div class="control-group">
+                    <h4>Detail Jam</h4>
+                    <label>Spasi Huruf</label>
+                    <input type="range" min="-20" max="20" id="inp-spacing" oninput="updateConfig('letterSpacing', this.value)">
+                    
+                    <label>Efek Blur Bayangan</label>
+                    <input type="range" min="0" max="50" id="inp-blur" oninput="updateConfig('shadowBlur', this.value)">
+
+                    <label style="margin-top: 10px;">
+                        <input type="checkbox" id="inp-blink" onchange="updateConfig('blinkSep', this.checked)">
+                        Titik Dua Kedip
+                    </label>
+                    
+                    <label>
+                        <input type="checkbox" id="inp-seconds" onchange="updateConfig('showSeconds', this.checked)">
+                        Tampilkan Detik
+                    </label>
+                </div>
             </div>
+
+            <!-- TAB 2: TANGGAL & INFO -->
+            <div class="control-grid">
+                <div class="control-group">
+                    <h4>Tanggal</h4>
+                    <label>
+                        <input type="checkbox" id="inp-show-date" onchange="updateConfig('showDate', this.checked)">
+                        Tampilkan Tanggal
+                    </label>
+                    
+                    <label>Ukuran Tanggal</label>
+                    <input type="range" min="1" max="10" step="0.5" id="inp-date-size" oninput="updateConfig('dateSize', this.value)">
+                    
+                    <label>Warna Tanggal</label>
+                    <input type="color" id="inp-date-color" oninput="updateConfig('dateColor', this.value)">
+                </div>
+
+                <div class="control-group" style="grid-column: span 2;">
+                    <h4>Running Text (Pengumuman)</h4>
+                    <label>
+                        <input type="checkbox" id="inp-show-marquee" onchange="updateConfig('showMarquee', this.checked)">
+                        Aktifkan Running Text
+                    </label>
+
+                    <label>Isi Pesan</label>
+                    <input type="text" id="inp-marquee-text" placeholder="Ketik pengumuman..." oninput="updateConfig('marqueeText', this.value)">
+                    
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1">
+                            <label>Warna Teks</label>
+                            <input type="color" id="inp-marquee-color" oninput="updateConfig('marqueeColor', this.value)">
+                        </div>
+                        <div style="flex:1">
+                            <label>Background Bar</label>
+                            <input type="color" id="inp-marquee-bg" oninput="updateConfig('marqueeBg', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SYSTEM -->
+            <div class="action-buttons">
+                <button class="btn btn-warning" onclick="resetConfig()">♻️ Reset Default</button>
+                <button class="btn btn-primary" onclick="saveAndClose()">💾 Simpan Permanen</button>
+            </div>
+            <p style="margin-top:10px; font-size:0.8rem; color:#666;">*Pengaturan disimpan di LocalStorage browser ini.</p>
         </div>
     </div>
 
-    <!-- Tombol Kontrol -->
-    <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Layar Penuh">⛶</button>
-
     <script>
-        /**
-         * ============================================================
-         * KONFIGURASI SISTEM
-         * ============================================================
-         */
-        const CONFIG = {
-            API_KEY: 'Bd86e364988e5b75dc400b2b9fdf7635', // KUNCI API ANDA (VALID)
-            REFRESH_WEATHER: 10 * 60 * 1000, // Update Cuaca tiap 10 Menit
-            DEFAULT_CITY: 'Jakarta' // Fallback jika GPS mati
+        /* =========================================
+           STATE MANAGEMENT
+           ========================================= */
+        const defaultConfig = {
+            bgColor: '#000000',
+            textColor: '#ffffff',
+            shadowColor: '#000000',
+            shadowBlur: 0,
+            
+            fontFamily: "'Rubik', sans-serif",
+            clockSize: 25, // vw
+            clockWeight: 700,
+            letterSpacing: -5,
+            blinkSep: false,
+            showSeconds: true,
+            
+            showDate: false,
+            dateSize: 2, // vw
+            dateColor: '#aaaaaa',
+            
+            showMarquee: false,
+            marqueeText: "Selamat Datang - Silakan Edit Pesan Ini Di Admin Panel",
+            marqueeColor: "#ffcc00",
+            marqueeBg: "#111111"
         };
 
-        // State Aplikasi
-        let appState = {
-            weather: {
-                temp: 0,
-                main: 'Clear',
-                desc: 'Cerah',
-                isDay: true
-            },
-            location: {
-                lat: null,
-                lon: null,
-                name: 'Mencari...'
+        let config = {...defaultConfig};
+
+        // Load Config on Start
+        function loadConfig() {
+            const saved = localStorage.getItem('clockConfig');
+            if (saved) {
+                config = {...config, ...JSON.parse(saved)};
             }
-        };
+            applyConfigToDOM();
+            syncInputs();
+        }
 
-        // Elemen DOM
-        const elClock = document.getElementById('clock');
-        const elDate = document.getElementById('date');
-        const elTemp = document.getElementById('temperature');
-        const elCond = document.getElementById('condition');
-        const elLoc = document.getElementById('location-name');
-        const elCoords = document.getElementById('coords');
-        const elIcon = document.getElementById('w-icon');
-        const bgGradient = document.getElementById('bg-gradient');
-        const weatherOverlay = document.getElementById('weather-overlay');
-        const flashOverlay = document.getElementById('flash-overlay');
+        function saveConfig() {
+            localStorage.setItem('clockConfig', JSON.stringify(config));
+        }
 
-        /**
-         * ============================================================
-         * 1. SISTEM JAM & TANGGAL (REALTIME)
-         * ============================================================
-         */
+        function resetConfig() {
+            if(confirm("Kembalikan ke pengaturan awal?")) {
+                config = {...defaultConfig};
+                saveConfig();
+                loadConfig();
+            }
+        }
+
+        /* =========================================
+           DOM MANIPULATION
+           ========================================= */
+        function applyConfigToDOM() {
+            const root = document.documentElement.style;
+            
+            // Tampilan Utama
+            root.setProperty('--bg-color', config.bgColor);
+            root.setProperty('--text-color', config.textColor);
+            root.setProperty('--shadow-color', config.shadowColor);
+            root.setProperty('--shadow-blur', config.shadowBlur + 'px');
+            
+            root.setProperty('--font-family', config.fontFamily);
+            root.setProperty('--clock-size', config.clockSize + 'vw');
+            root.setProperty('--clock-weight', config.clockWeight);
+            root.setProperty('--letter-spacing', config.letterSpacing + 'px');
+
+            // Date
+            root.setProperty('--date-display', config.showDate ? 'block' : 'none');
+            root.setProperty('--date-size', config.dateSize + 'vw');
+            root.setProperty('--date-color', config.dateColor);
+
+            // Marquee
+            root.setProperty('--marquee-display', config.showMarquee ? 'block' : 'none');
+            root.setProperty('--marquee-color', config.marqueeColor);
+            root.setProperty('--marquee-bg', config.marqueeBg);
+            document.getElementById('marquee-text').innerText = config.marqueeText;
+
+            // Logika Detik
+            document.getElementById('s').style.display = config.showSeconds ? 'inline' : 'none';
+            // Sembunyikan separator kedua jika detik mati
+            const seps = document.querySelectorAll('.sep');
+            if(seps[1]) seps[1].style.display = config.showSeconds ? 'inline' : 'none';
+
+            // Logika Kedip
+            seps.forEach(el => {
+                if(config.blinkSep) el.classList.add('blink-animation');
+                else el.classList.remove('blink-animation');
+            });
+        }
+
+        // Fungsi yang dipanggil input HTML
+        function updateConfig(key, value) {
+            config[key] = value;
+            applyConfigToDOM();
+        }
+
+        function syncInputs() {
+            document.getElementById('inp-bg-color').value = config.bgColor;
+            document.getElementById('inp-text-color').value = config.textColor;
+            document.getElementById('inp-shadow-color').value = config.shadowColor;
+            
+            document.getElementById('inp-font').value = config.fontFamily;
+            document.getElementById('inp-size').value = config.clockSize;
+            document.getElementById('inp-weight').value = config.clockWeight;
+            document.getElementById('inp-spacing').value = config.letterSpacing;
+            document.getElementById('inp-blur').value = config.shadowBlur;
+            
+            document.getElementById('inp-blink').checked = config.blinkSep;
+            document.getElementById('inp-seconds').checked = config.showSeconds;
+            
+            document.getElementById('inp-show-date').checked = config.showDate;
+            document.getElementById('inp-date-size').value = config.dateSize;
+            document.getElementById('inp-date-color').value = config.dateColor;
+            
+            document.getElementById('inp-show-marquee').checked = config.showMarquee;
+            document.getElementById('inp-marquee-text').value = config.marqueeText;
+            document.getElementById('inp-marquee-color').value = config.marqueeColor;
+            document.getElementById('inp-marquee-bg').value = config.marqueeBg;
+        }
+
+        /* =========================================
+           CLOCK LOGIC
+           ========================================= */
         function updateClock() {
             const now = new Date();
+            document.getElementById('h').innerText = String(now.getHours()).padStart(2, '0');
+            document.getElementById('m').innerText = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('s').innerText = String(now.getSeconds()).padStart(2, '0');
             
-            // Format Jam: 09:05:01
-            const h = String(now.getHours()).padStart(2, '0');
-            const m = String(now.getMinutes()).padStart(2, '0');
-            const s = String(now.getSeconds()).padStart(2, '0');
-            elClock.innerText = `${h}:${m}:${s}`;
-
-            // Format Tanggal: Senin, 29 Januari 2026
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            elDate.innerText = now.toLocaleDateString('id-ID', options);
-
-            // Tentukan Siang/Malam secara manual (backup jika API gagal)
-            const hour = now.getHours();
-            // Jika data API belum masuk, gunakan jam lokal untuk tentukan background
-            if (elCond.innerText === "Memuat Data...") {
-                appState.weather.isDay = (hour >= 6 && hour < 18);
-                renderBackground(hour);
-            } else {
-                // Jika API sudah ada, render background tetap jalan agar transisi waktu (pagi/sore) halus
-                renderBackground(hour);
+            // Update Date text only once a minute to save resource
+            if(now.getSeconds() === 0) {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('date-display').innerText = now.toLocaleDateString('id-ID', options);
             }
         }
-
-        // Jalankan detik ini juga
         setInterval(updateClock, 1000);
         updateClock();
+        // Init date immediately
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('date-display').innerText = new Date().toLocaleDateString('id-ID', options);
 
-        /**
-         * ============================================================
-         * 2. SISTEM CUACA & LOKASI
-         * ============================================================
-         */
-        function initWeatherSystem() {
-            elCond.innerText = "Mendeteksi Lokasi...";
-            
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        appState.location.lat = position.coords.latitude;
-                        appState.location.lon = position.coords.longitude;
-                        elCoords.innerText = `${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`;
-                        fetchWeather(position.coords.latitude, position.coords.longitude);
-                    },
-                    (error) => {
-                        console.warn("GPS Ditolak/Error. Menggunakan Default City.");
-                        elCoords.innerText = "Mode Kota Default";
-                        fetchWeatherByCity(CONFIG.DEFAULT_CITY);
-                    }
-                );
-            } else {
-                fetchWeatherByCity(CONFIG.DEFAULT_CITY);
+
+        /* =========================================
+           ADMIN LOGIC
+           ========================================= */
+        const trigger = document.getElementById('admin-trigger');
+        const modal = document.getElementById('admin-panel');
+        let clickCount = 0;
+        let clickTimer;
+
+        // Klik 3x cepat
+        trigger.addEventListener('click', () => {
+            clickCount++;
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => clickCount = 0, 500); // Reset kalau lebih dari 0.5 detik jeda
+
+            if (clickCount >= 3) {
+                openAdmin();
+                clickCount = 0;
+            }
+        });
+
+        // Shortcut Keyboard: Tekan 'M' (Menu)
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'm' && modal.style.display !== 'block') {
+                openAdmin();
+            }
+            if (e.key === 'Escape') {
+                closeAdmin();
+            }
+        });
+
+        function openAdmin() {
+            const pin = prompt("Masukkan PIN Admin (Default: 1234):");
+            if (pin === "1234") {
+                modal.style.display = 'block';
+                syncInputs(); // Pastikan input sesuai config saat ini
+            } else if (pin !== null) {
+                alert("PIN Salah!");
             }
         }
 
-        async function fetchWeather(lat, lon) {
-            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&lang=id&appid=${CONFIG.API_KEY}`;
-            processWeatherData(url);
+        function closeAdmin() {
+            modal.style.display = 'none';
         }
 
-        async function fetchWeatherByCity(city) {
-            const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&lang=id&appid=${CONFIG.API_KEY}`;
-            processWeatherData(url);
+        function saveAndClose() {
+            saveConfig();
+            closeAdmin();
+            alert("Pengaturan tersimpan!");
         }
 
-        async function processWeatherData(url) {
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-
-                if (data.cod === 200) {
-                    // Update State
-                    appState.weather.temp = Math.round(data.main.temp);
-                    appState.weather.main = data.weather[0].main;
-                    appState.weather.desc = data.weather[0].description;
-                    
-                    // Cek waktu berdasarkan data API (dt) vs Sunset/Sunrise
-                    const nowSec = Math.floor(Date.now() / 1000);
-                    appState.weather.isDay = (nowSec > data.sys.sunrise && nowSec < data.sys.sunset);
-
-                    // Update UI
-                    elTemp.innerText = appState.weather.temp;
-                    elCond.innerText = toTitleCase(appState.weather.desc);
-                    elLoc.innerText = data.name;
-
-                    // Update Visual
-                    updateWeatherIcon(appState.weather.main, appState.weather.isDay);
-                    updateParticleSystem(); // Trigger Hujan/Bintang
-                } else {
-                    throw new Error(data.message);
-                }
-            } catch (error) {
-                console.error("Weather Error:", error);
-                elCond.innerText = "Cuaca Offline";
-                elIcon.innerText = "📡";
-            }
-        }
-
-        function toTitleCase(str) {
-            return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-        }
-
-        function updateWeatherIcon(main, isDay) {
-            const icons = {
-                'Clear': isDay ? '☀️' : '🌙',
-                'Clouds': '☁️',
-                'Rain': '🌧️',
-                'Drizzle': '🌦️',
-                'Thunderstorm': '⛈️',
-                'Snow': '❄️',
-                'Mist': '🌫️',
-                'Fog': '🌫️'
-            };
-            elIcon.innerText = icons[main] || '🌤️';
-        }
-
-        // Auto Refresh Weather
-        setInterval(initWeatherSystem, CONFIG.REFRESH_WEATHER);
-        initWeatherSystem(); // Jalankan pertama kali
-
-        /**
-         * ============================================================
-         * 3. VISUAL & BACKGROUND ENGINE
-         * ============================================================
-         */
-        const SKY_COLORS = {
-            DAWN: 'linear-gradient(to bottom, #2c3e50, #fd746c)',      // 04-06
-            MORNING: 'linear-gradient(to bottom, #2980b9, #6dd5fa)',   // 06-11
-            NOON: 'linear-gradient(to bottom, #005c97, #363795)',      // 11-15
-            SUNSET: 'linear-gradient(to bottom, #ff512f, #dd2476)',    // 15-18
-            NIGHT: 'linear-gradient(to bottom, #0f2027, #203a43, #2c5364)' // 18-04
-        };
-
-        function renderBackground(hour) {
-            let gradient = SKY_COLORS.NIGHT;
-
-            // Logika Waktu
-            if (hour >= 4 && hour < 6) gradient = SKY_COLORS.DAWN;
-            else if (hour >= 6 && hour < 11) gradient = SKY_COLORS.MORNING;
-            else if (hour >= 11 && hour < 15) gradient = SKY_COLORS.NOON;
-            else if (hour >= 15 && hour < 18) gradient = SKY_COLORS.SUNSET;
-
-            // Logika Cuaca (Override)
-            const wMain = appState.weather.main;
-            
-            weatherOverlay.style.background = 'transparent';
-
-            if (wMain === 'Rain' || wMain === 'Drizzle') {
-                weatherOverlay.style.background = 'rgba(0,0,0,0.5)'; // Gelap Hujan
-            } else if (wMain === 'Thunderstorm') {
-                gradient = 'linear-gradient(to bottom, #141E30, #243B55)'; // Badai
-            } else if (wMain === 'Clouds' || wMain === 'Mist') {
-                weatherOverlay.style.background = 'rgba(200,200,200,0.2)'; // Abu-abu Berawan
-            }
-
-            bgGradient.style.background = gradient;
-        }
-
-        /**
-         * ============================================================
-         * 4. CANVAS ANIMATION (Hujan & Bintang)
-         * ============================================================
-         */
-        const canvas = document.getElementById('particle-canvas');
-        const ctx = canvas.getContext('2d');
-        let particles = [];
-        let animationId;
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        class RainDrop {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.speed = Math.random() * 5 + 15; // Lebih cepat
-                this.length = Math.random() * 20 + 10;
-            }
-            update() {
-                this.y += this.speed;
-                if (this.y > canvas.height) {
-                    this.y = -this.length;
-                    this.x = Math.random() * canvas.width;
-                }
-            }
-            draw() {
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x, this.y + this.length);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            }
-        }
-
-        class Star {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.size = Math.random() * 2;
-                this.opacity = Math.random();
-                this.twinkleSpeed = Math.random() * 0.02 + 0.005;
-            }
-            update() {
-                this.opacity += this.twinkleSpeed;
-                if (this.opacity > 1 || this.opacity < 0) this.twinkleSpeed *= -1;
-            }
-            draw() {
-                ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(this.opacity)})`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function updateParticleSystem() {
-            // Reset
-            particles = [];
-            if(animationId) cancelAnimationFrame(animationId);
-            stopLightningLoop(); // Stop petir dulu
-            
-            const wMain = appState.weather.main;
-            const isNight = !appState.weather.isDay;
-
-            if (wMain === 'Rain' || wMain === 'Drizzle' || wMain === 'Thunderstorm') {
-                // Mode Hujan
-                for(let i=0; i<200; i++) particles.push(new RainDrop());
-                animateParticles();
-                if(wMain === 'Thunderstorm') startLightningLoop();
-
-            } else if (wMain === 'Clear' && isNight) {
-                // Mode Bintang (Malam Cerah)
-                for(let i=0; i<150; i++) particles.push(new Star());
-                animateParticles();
-
-            } else {
-                // Cerah Siang / Berawan Biasa -> Bersihkan Canvas
-                ctx.clearRect(0,0, canvas.width, canvas.height);
-            }
-        }
-
-        function animateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => {
-                p.update();
-                p.draw();
-            });
-            animationId = requestAnimationFrame(animateParticles);
-        }
-
-        // Petir Loop
-        let lightningTimeout;
-        function startLightningLoop() {
-            const randomTime = Math.random() * 5000 + 3000;
-            lightningTimeout = setTimeout(() => {
-                flashOverlay.classList.add('flash-active');
-                setTimeout(() => flashOverlay.classList.remove('flash-active'), 800);
-                startLightningLoop();
-            }, randomTime);
-        }
-        function stopLightningLoop() { clearTimeout(lightningTimeout); }
-
-        /**
-         * ============================================================
-         * 5. UTILS
-         * ============================================================
-         */
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => console.log(e));
+                document.documentElement.requestFullscreen().catch(e=>console.log(e));
             } else {
                 if(document.exitFullscreen) document.exitFullscreen();
             }
         }
-        
-        // Auto Fullscreen saat klik pertama
-        document.body.addEventListener('click', () => {
-            if(!document.fullscreenElement) toggleFullscreen();
-        }, {once:true});
+
+        // Start
+        loadConfig();
 
     </script>
 </body>
