@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Clock v6 - God Mode</title>
+    <title>Ultimate Clock v6.1 - AI Fixed</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +53,7 @@
         /* --- BLACKOUT MODE CLASS --- */
         body.blackout-active {
             background: #000000 !important;
-            color: #333333; /* Default dim */
+            color: #333333; 
         }
         
         body.blackout-active .main-content > *:not(#clock) {
@@ -64,10 +64,9 @@
             transform: translateY(100%); transition: transform 0.5s;
         }
 
-        /* Jika user ingin jam tetap tampil saat blackout */
         body.blackout-active.show-clock-on-blackout #clock {
             opacity: 1;
-            color: #444444; /* Dimmed clock color */
+            color: #444444; 
             text-shadow: none;
         }
 
@@ -239,7 +238,7 @@
 </head>
 <body>
 
-    <div id="debug-indicator">System v6 Ready</div>
+    <div id="debug-indicator">System v6.1 Ready</div>
 
     <div class="main-content">
         <img id="logo-img" src="" alt="Logo">
@@ -261,7 +260,7 @@
         <div class="admin-header">
             <div>
                 <h2 style="color:white; font-size: 1.2rem;">🎛️ Ultimate Control v6</h2>
-                <small style="color:#666;">God Mode Edition</small>
+                <small style="color:#666;">God Mode Edition (Fixed)</small>
             </div>
             <button onclick="document.getElementById('admin-panel').style.display='none'" style="background:transparent; border:none; color:#aaa; font-size:1.5rem; cursor:pointer;">✕</button>
         </div>
@@ -393,20 +392,27 @@
 
             <div id="tab-ai" class="tab-content">
                 <div class="control-group" style="border: 1px solid #8e2de2; background: #130a1f;">
-                    <h4>🧠 Gemini AI Generator</h4>
+                    <h4>🧠 Gemini AI Generator (V6.1)</h4>
                     <p style="font-size: 0.8rem; color:#ccc; margin-bottom:10px;">Gunakan AI untuk membuat kata-kata Running Text secara otomatis.</p>
                     
                     <label>API Key Gemini (Wajib)</label>
                     <input type="password" id="inp-ai-key" placeholder="Paste API Key Gemini Anda di sini...">
-                    <small style="color:#666;">*Disimpan lokal di browser Anda demi keamanan.</small>
+                    <small style="color:#666;">*Disimpan lokal di browser Anda.</small>
+
+                    <label>Pilih Model AI (Coba ganti jika error)</label>
+                    <select id="inp-ai-model">
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Cepat/Gratis)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Lebih Pintar)</option>
+                        <option value="gemini-pro">Gemini Pro (Legacy)</option>
+                    </select>
 
                     <label>Perintah Prompt</label>
-                    <textarea id="inp-ai-prompt" placeholder="Contoh: Buatkan 5 himbauan singkat untuk jamaah masjid tentang kebersihan dan ketertiban sholat jumat." style="height:80px;"></textarea>
+                    <textarea id="inp-ai-prompt" placeholder="Contoh: Buatkan hadits pendek tentang kebersihan." style="height:80px;"></textarea>
 
                     <button class="btn-ai-gen" onclick="generateAI()">
                         <div class="loader" id="ai-loader"></div> ✨ Generate Text via AI
                     </button>
-                    <div id="ai-status" style="margin-top:5px; font-size:0.8rem;"></div>
+                    <div id="ai-status" style="margin-top:10px; font-size:0.85rem; padding:5px; border-radius:4px;"></div>
                 </div>
             </div>
 
@@ -466,14 +472,18 @@
         if(savedKey) document.getElementById('inp-ai-key').value = savedKey;
 
         // ===========================================
-        // AI LOGIC (GEMINI)
+        // AI LOGIC (GEMINI) - IMPROVED ERROR HANDLING
         // ===========================================
         window.generateAI = async () => {
-            const key = document.getElementById('inp-ai-key').value;
+            const key = document.getElementById('inp-ai-key').value.trim();
+            const model = document.getElementById('inp-ai-model').value;
             const promptText = document.getElementById('inp-ai-prompt').value;
             const statusEl = document.getElementById('ai-status');
             const loader = document.getElementById('ai-loader');
             const targetText = document.getElementById('inp-mq-text');
+
+            statusEl.innerText = "";
+            statusEl.style.background = "transparent";
 
             if(!key) { alert("Masukkan API Key Gemini dulu!"); return; }
             if(!promptText) { alert("Masukkan Prompt perintah!"); return; }
@@ -485,10 +495,12 @@
             statusEl.style.color = "#00d4ff";
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+                // Construct URL with selected model
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+                
                 const payload = {
                     contents: [{
-                        parts: [{text: promptText + ". Outputkan hanya teks hasil jadinya saja, jangan pakai markdown, buat dalam satu paragraf panjang agar cocok untuk running text."}]
+                        parts: [{text: promptText + ". Jawab dalam Bahasa Indonesia. Outputkan hanya teks hasil jadinya saja tanpa pembuka/penutup. Jangan pakai markdown (bold/italic). Buat dalam satu paragraf panjang menyambung agar cocok untuk running text marquee."}]
                     }]
                 };
 
@@ -498,21 +510,38 @@
                     body: JSON.stringify(payload)
                 });
 
+                // Cek Error Level HTTP (400, 403, 500)
+                if (!response.ok) {
+                    const errData = await response.json();
+                    let errMsg = errData.error?.message || "Unknown Error";
+                    
+                    // Terjemahkan error umum Google ke Bahasa Manusia
+                    if(errMsg.includes("API key not valid")) errMsg = "API Key Salah / Tidak Valid";
+                    if(errMsg.includes("Quota exceeded")) errMsg = "Kuota API Habis (Tunggu sebentar)";
+                    if(errMsg.includes("not found")) errMsg = "Model AI tidak support di akun ini, coba ganti model.";
+                    
+                    throw new Error(errMsg);
+                }
+
                 const data = await response.json();
                 
                 if(data.candidates && data.candidates[0].content) {
                     const resultText = data.candidates[0].content.parts[0].text;
-                    // Clean up text
-                    targetText.value = resultText.replace(/\n/g, "  *** ");
-                    statusEl.innerText = "Sukses! Silakan klik tombol SYNC dibawah.";
+                    // Bersihkan sisa markdown jika ada
+                    const cleanText = resultText.replace(/\*/g, "").replace(/\n/g, "  *** ").trim();
+                    targetText.value = cleanText;
+                    
+                    statusEl.innerText = "✅ SUKSES! Silakan klik tombol SYNC dibawah.";
                     statusEl.style.color = "#00ffaa";
+                    statusEl.style.background = "rgba(0, 255, 0, 0.1)";
                 } else {
-                    throw new Error("Respon AI tidak valid");
+                    throw new Error("Format respon AI tidak dikenali.");
                 }
             } catch (err) {
                 console.error(err);
-                statusEl.innerText = "Error: " + err.message;
-                statusEl.style.color = "#ff3333";
+                statusEl.innerText = "❌ GAGAL: " + err.message;
+                statusEl.style.color = "#ffcccc";
+                statusEl.style.background = "rgba(255, 0, 0, 0.2)";
             } finally {
                 loader.style.display = 'none';
             }
@@ -535,7 +564,6 @@
             
             // Kalkulasi Speed lebih cerdas
             // SpeedVal dr input (10 - 500). Makin besar makin pelan.
-            // Rumus: Base duration * factor
             let duration = (textWidth + screenWidth) * (speedVal / 1000);
             if(duration < 5) duration = 5; 
             
@@ -597,7 +625,7 @@
                 bgType: finalBg, 
                 bgModeState: mode, 
                 bgColorState: document.getElementById('inp-bg-color').value,
-                bgPresetState: document.getElementById('inp-bg-preset-val').value, // NEW
+                bgPresetState: document.getElementById('inp-bg-preset-val').value,
                 bgUrlState: document.getElementById('inp-bg-url').value,
                 textColor: document.getElementById('inp-text-color').value,
                 fontFamily: document.getElementById('inp-font').value,
@@ -655,7 +683,7 @@
             const root = document.documentElement.style;
             const body = document.body;
 
-            // 1. Handling Blackout Mode (PRIORITY)
+            // 1. Handling Blackout Mode
             if (d.isBlackout) {
                 body.classList.add('blackout-active');
                 if (d.blackoutShowClock) {
@@ -711,7 +739,7 @@
         // SYNC INPUTS (AGAR ADMIN SAMA DENGAN LAYAR)
         // ===========================================
         function syncInputs(d) {
-            // Block loopback jika sedang mengetik (opsional, tapi aman begini)
+            // Block loopback jika sedang mengetik
             if(document.activeElement.tagName === "TEXTAREA" || document.activeElement.tagName === "INPUT") return;
 
             // Visual
@@ -740,7 +768,7 @@
             // Media & Blackout
             document.getElementById('inp-logo').value = d.logoUrl;
             document.getElementById('inp-show-logo').checked = d.showLogo;
-            document.getElementById('inp-blackout-mode').checked = d.isBlackout; // Sync Checkbox
+            document.getElementById('inp-blackout-mode').checked = d.isBlackout; 
             document.getElementById('inp-blackout-clock').checked = d.blackoutShowClock;
             
             // Marquee
