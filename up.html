@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Clock v6 - God Mode</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;500;700&family=Orbitron:wght@400;700&family=Bebas+Neue&family=Noto+Naskh+Arabic:wght@400;700&family=Dancing+Script:wght@700&family=Fredoka:wght@400;600&family=Anton&family=Chakra+Petch:wght@400;700&family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;1,700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* GLOBAL VARS */
+            --bg-actual: #000000;
+            --text-color: #ffffff;
+            --font-family: 'Rubik', sans-serif;
+            
+            /* CLOCK */
+            --clock-size: 25vw;
+            --clock-glow: 0px;
+            
+            /* INFO */
+            --title-size: 3vw;
+            --title-color: #ffd700;
+            --date-size: 2vw;
+            --date-color: #aaaaaa;
+            
+            /* MARQUEE */
+            --mq-bg: #111111;
+            --mq-color: #ffd700;
+            --mq-size: 3vw;
+            --mq-duration: 20s;
+            --mq-play-state: running;
+            --mq-height: 8vh;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-actual);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            font-family: var(--font-family);
+            height: 100vh; width: 100vw; overflow: hidden;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            transition: all 0.5s ease;
+        }
+
+        /* --- BLACKOUT MODE CLASS --- */
+        body.blackout-active {
+            background: #000000 !important;
+            color: #333333; /* Default dim */
+        }
+        
+        body.blackout-active .main-content > *:not(#clock) {
+            opacity: 0; visibility: hidden; transition: opacity 0.5s;
+        }
+        
+        body.blackout-active .marquee-container {
+            transform: translateY(100%); transition: transform 0.5s;
+        }
+
+        /* Jika user ingin jam tetap tampil saat blackout */
+        body.blackout-active.show-clock-on-blackout #clock {
+            opacity: 1;
+            color: #444444; /* Dimmed clock color */
+            text-shadow: none;
+        }
+
+        /* --- UTAMA: JAM & INFO --- */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            width: 100%; padding-bottom: var(--mq-height);
+            z-index: 10;
+            transition: padding 0.3s;
+        }
+
+        #logo-img { max-height: 12vh; margin-bottom: 2vh; display: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); transition: all 0.5s; }
+        
+        #main-title {
+            font-size: var(--title-size); color: var(--title-color); 
+            text-transform: uppercase; text-align: center; display: none;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5); margin-bottom: 1vh;
+            letter-spacing: 2px;
+        }
+
+        #clock {
+            font-size: var(--clock-size); font-weight: 700; line-height: 1;
+            white-space: nowrap;
+            text-shadow: 0 0 var(--clock-glow) var(--text-color), 3px 3px 5px rgba(0,0,0,0.8);
+            font-variant-numeric: tabular-nums;
+            transition: color 0.5s, text-shadow 0.5s;
+        }
+
+        #date {
+            font-size: var(--date-size); color: var(--date-color);
+            margin-top: 2vh; opacity: 0.9; font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); display: none;
+        }
+
+        /* --- MARQUEE ENGINE --- */
+        .marquee-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            height: var(--mq-height);
+            background: var(--mq-bg);
+            border-top: 2px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+            display: flex; align-items: center;
+            z-index: 50;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            transition: height 0.3s, transform 0.5s;
+        }
+
+        .marquee-track {
+            display: flex;
+            white-space: nowrap;
+            will-change: transform;
+            animation: scroll-left var(--mq-duration) linear infinite;
+            animation-play-state: var(--mq-play-state);
+        }
+
+        .marquee-item {
+            font-size: var(--mq-size);
+            color: var(--mq-color);
+            padding-right: 15vw;
+            font-weight: 500;
+            display: inline-block;
+        }
+
+        @keyframes scroll-left {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
+        }
+
+        /* --- ADMIN TRIGGER --- */
+        .admin-trigger {
+            position: fixed; top: 0; right: 0; width: 50px; height: 50px;
+            z-index: 900; cursor: pointer; opacity: 0.05;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .admin-trigger:hover { opacity: 1; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); }
+
+        /* --- GOD MODE ADMIN PANEL --- */
+        #admin-panel {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 10, 0.95); 
+            backdrop-filter: blur(10px);
+            z-index: 1000; overflow-y: auto; color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .admin-header {
+            background: rgba(20, 20, 20, 0.9); padding: 15px 20px; position: sticky; top: 0; z-index: 1001;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        
+        .panel-container { max-width: 700px; margin: 0 auto; padding-bottom: 100px; padding-top: 20px; }
+
+        .tabs { 
+            display: flex; background: #111; overflow-x: auto; margin-bottom: 20px; 
+            border-radius: 10px; padding: 5px; gap: 5px; border: 1px solid #333;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; background: transparent; color: #666;
+            font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .tab-btn.active { background: #222; color: #00d4ff; box-shadow: 0 0 10px rgba(0, 212, 255, 0.1); }
+        .tab-btn:hover:not(.active) { color: #aaa; background: #1a1a1a; }
+
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CONTROLS STYLING */
+        .control-group { 
+            background: #181818; padding: 20px; border-radius: 12px; margin-bottom: 15px; 
+            border: 1px solid #2a2a2a; box-shadow: 0 4px 6px rgba(0,0,0,0.2); 
+        }
+        .control-group h4 { color: #00d4ff; margin-bottom: 15px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        label { display: block; margin-top: 12px; color: #ccc; font-size: 0.85rem; font-weight: 500; }
+        input, select, textarea { 
+            width: 100%; background: #252525; border: 1px solid #444; 
+            color: white; padding: 12px; border-radius: 6px; margin-top: 6px; 
+            font-size: 0.9rem; transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #00d4ff; outline: none; }
+        input[type="color"] { height: 45px; padding: 2px; cursor: pointer; }
+        textarea { min-height: 100px; resize: vertical; font-family: monospace; }
+        
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+        
+        /* Custom Switch */
+        .switch-wrap { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding: 5px 0; }
+        .switch-wrap input[type="checkbox"] { width: 20px; height: 20px; accent-color: #00d4ff; margin: 0; cursor: pointer; }
+
+        /* Buttons */
+        .control-btns button, .btn-action {
+            background: #333; border: 1px solid #555; color: white;
+            padding: 8px 15px; border-radius: 6px; cursor: pointer; margin-right: 5px; font-size: 0.85rem; transition: 0.2s;
+        }
+        .control-btns button:hover { background: #555; transform: translateY(-1px); }
+
+        .btn-sticky {
+            position: fixed; bottom: 0; left: 0; width: 100%; padding: 15px;
+            background: rgba(20, 20, 20, 0.95); border-top: 1px solid #333;
+            display: flex; justify-content: center; backdrop-filter: blur(5px);
+        }
+        .btn-save {
+            width: 100%; max-width: 600px; padding: 14px; 
+            background: linear-gradient(135deg, #007bff, #00d4ff);
+            border: none; color: white; font-weight: bold; font-size: 1.1rem;
+            border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+            transition: transform 0.2s;
+        }
+        .btn-save:active { transform: scale(0.98); }
+        
+        .btn-ai-gen {
+            background: linear-gradient(135deg, #8e2de2, #4a00e0); width: 100%; margin-top: 10px;
+            border: none; padding: 12px; border-radius: 6px; color: white; font-weight: bold; cursor: pointer;
+        }
+        .btn-ai-gen:hover { filter: brightness(1.2); }
+
+        #debug-indicator { position: fixed; bottom: 90px; right: 10px; color: #00ffaa; font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 20px; pointer-events: none; z-index: 800; }
+        
+        /* Loading Animation */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #00d4ff; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px; display:none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="debug-indicator">System v6 Ready</div>
+
+    <div class="main-content">
+        <img id="logo-img" src="" alt="Logo">
+        <div id="main-title">NAMA INSTANSI</div>
+        <div id="clock">00:00:00</div>
+        <div id="date">...</div>
+    </div>
+
+    <div class="marquee-container" id="mq-container">
+        <div class="marquee-track" id="mq-track">
+            <div class="marquee-item" id="mq-item-1">...</div>
+            <div class="marquee-item" id="mq-item-2" aria-hidden="true">...</div>
+        </div>
+    </div>
+
+    <div class="admin-trigger" id="open-admin">⚙️</div>
+
+    <div id="admin-panel">
+        <div class="admin-header">
+            <div>
+                <h2 style="color:white; font-size: 1.2rem;">🎛️ Ultimate Control v6</h2>
+                <small style="color:#666;">God Mode Edition</small>
+            </div>
+            <button onclick="document.getElementById('admin-panel').style.display='none'" style="background:transparent; border:none; color:#aaa; font-size:1.5rem; cursor:pointer;">✕</button>
+        </div>
+
+        <div class="panel-container">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('tab-visual')">🎨 Tampilan</button>
+                <button class="tab-btn" onclick="switchTab('tab-clock')">⏰ Jam</button>
+                <button class="tab-btn" onclick="switchTab('tab-text')">📝 Teks</button>
+                <button class="tab-btn" onclick="switchTab('tab-ai')">🤖 AI Genius</button>
+                <button class="tab-btn" onclick="switchTab('tab-media')">🛠️ Tools</button>
+            </div>
+
+            <div id="tab-visual" class="tab-content active">
+                <div class="control-group">
+                    <h4>Background Ultimate</h4>
+                    <label>Mode Background</label>
+                    <select id="inp-bg-mode" onchange="toggleBgInput()">
+                        <option value="color">Warna Solid</option>
+                        <option value="preset">Preset Gradasi Mewah</option>
+                        <option value="image">Gambar URL (Custom)</option>
+                    </select>
+                    
+                    <div id="grp-bg-color">
+                        <label>Pilih Warna</label>
+                        <input type="color" id="inp-bg-color" value="#000000">
+                    </div>
+
+                    <div id="grp-bg-preset" style="display:none;">
+                        <label>Pilih Gaya Gradasi</label>
+                        <select id="inp-bg-preset-val">
+                            <option value="linear-gradient(135deg, #0f2027, #203a43, #2c5364)">Nordic Night</option>
+                            <option value="linear-gradient(to right, #141e30, #243b55)">Deep Sea</option>
+                            <option value="linear-gradient(to right, #4b6cb7, #182848)">Royal Blue</option>
+                            <option value="linear-gradient(to right, #000000, #434343)">Titanium</option>
+                            <option value="linear-gradient(to right, #8e2de2, #4a00e0)">Cyber Purple</option>
+                            <option value="linear-gradient(135deg, #111, #550000)">Red Devil</option>
+                            <option value="linear-gradient(135deg, #004d00, #001a00)">Matrix Green</option>
+                            <option value="linear-gradient(to right, #c31432, #240b36)">Vampire</option>
+                            <option value="radial-gradient(circle, #333, #000)">Spotlight Black</option>
+                            <option value="linear-gradient(to right, #ffafbd, #ffc3a0)">Sunset (Light)</option>
+                        </select>
+                    </div>
+
+                    <div id="grp-bg-url" style="display:none;">
+                        <label>URL Gambar</label>
+                        <input type="text" id="inp-bg-url" placeholder="https://wallpaper...jpg">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <h4>Typography God Mode</h4>
+                    <label>Jenis Font</label>
+                    <select id="inp-font">
+                        <optgroup label="Modern & Bersih">
+                            <option value="'Rubik', sans-serif">Rubik (Default)</option>
+                            <option value="'Anton', sans-serif">Anton (Tebal Tinggi)</option>
+                            <option value="'Bebas Neue', sans-serif">Bebas Neue (Kapital Ramping)</option>
+                            <option value="'Fredoka', sans-serif">Fredoka (Bulat Santai)</option>
+                        </optgroup>
+                        <optgroup label="Tema Unik">
+                            <option value="'Orbitron', sans-serif">Orbitron (Sci-Fi Digital)</option>
+                            <option value="'Press Start 2P', cursive">Pixel Art (Retro 8-bit)</option>
+                            <option value="'Chakra Petch', sans-serif">Chakra (Futuristik)</option>
+                            <option value="'Cinzel', serif">Cinzel (Cinematic Romawi)</option>
+                            <option value="'Playfair Display', serif">Playfair (Elegan Mewah)</option>
+                            <option value="'Dancing Script', cursive">Dancing Script (Tulisan Tangan)</option>
+                            <option value="'Noto Naskh Arabic', serif">Arabic Style</option>
+                        </optgroup>
+                    </select>
+                    <div class="row">
+                         <div class="col"><label>Warna Utama</label><input type="color" id="inp-text-color" value="#ffffff"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-clock" class="tab-content">
+                <div class="control-group">
+                    <h4>Pengaturan Jam</h4>
+                    <div class="row">
+                        <div class="col"><label>Ukuran</label><input type="range" id="inp-clock-size" min="10" max="60" value="25"></div>
+                        <div class="col"><label>Neon Glow</label><input type="range" id="inp-clock-glow" min="0" max="100" value="0"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h4>Header & Judul</h4>
+                    <div class="switch-wrap"><span>Tampilkan Judul</span><input type="checkbox" id="inp-show-title"></div>
+                    <input type="text" id="inp-title" placeholder="Nama Masjid / Aula / Event">
+                    <div class="row">
+                        <div class="col"><label>Warna Judul</label><input type="color" id="inp-title-color" value="#ffd700"></div>
+                        <div class="col"><label>Size</label><input type="range" id="inp-title-size" min="1" max="15" value="3"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h4>Tanggal</h4>
+                    <div class="switch-wrap"><span>Tampilkan Tanggal</span><input type="checkbox" id="inp-show-date"></div>
+                    <div class="row">
+                        <div class="col"><label>Warna</label><input type="color" id="inp-date-color" value="#aaaaaa"></div>
+                        <div class="col"><label>Size</label><input type="range" id="inp-date-size" min="1" max="10" value="2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-text" class="tab-content">
+                <div class="control-group" style="border-left: 4px solid #ffd700;">
+                    <h4>📜 Running Text (Footer)</h4>
+                    <div class="switch-wrap" style="margin-bottom:15px;">
+                        <span>Status Aktif</span>
+                        <input type="checkbox" id="inp-mq-show" checked>
+                    </div>
+
+                    <label>Isi Pesan</label>
+                    <textarea id="inp-mq-text" placeholder="Masukkan pengumuman di sini..."></textarea>
+                    
+                    <label>Kecepatan (Kanan = Lambat)</label>
+                    <input type="range" id="inp-mq-speed" min="10" max="500" value="100">
+                    
+                    <div class="row">
+                        <div class="col"><label>Teks Color</label><input type="color" id="inp-mq-color" value="#ffd700"></div>
+                        <div class="col"><label>Background Bar</label><input type="color" id="inp-mq-bg" value="#111111"></div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col"><label>Font Size</label><input type="range" id="inp-mq-size" min="10" max="100" value="30"></div>
+                        <div class="col"><label>Tinggi Bar</label><input type="range" id="inp-mq-height" min="5" max="30" value="8"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-ai" class="tab-content">
+                <div class="control-group" style="border: 1px solid #8e2de2; background: #130a1f;">
+                    <h4>🧠 Gemini AI Generator</h4>
+                    <p style="font-size: 0.8rem; color:#ccc; margin-bottom:10px;">Gunakan AI untuk membuat kata-kata Running Text secara otomatis.</p>
+                    
+                    <label>API Key Gemini (Wajib)</label>
+                    <input type="password" id="inp-ai-key" placeholder="Paste API Key Gemini Anda di sini...">
+                    <small style="color:#666;">*Disimpan lokal di browser Anda demi keamanan.</small>
+
+                    <label>Perintah Prompt</label>
+                    <textarea id="inp-ai-prompt" placeholder="Contoh: Buatkan 5 himbauan singkat untuk jamaah masjid tentang kebersihan dan ketertiban sholat jumat." style="height:80px;"></textarea>
+
+                    <button class="btn-ai-gen" onclick="generateAI()">
+                        <div class="loader" id="ai-loader"></div> ✨ Generate Text via AI
+                    </button>
+                    <div id="ai-status" style="margin-top:5px; font-size:0.8rem;"></div>
+                </div>
+            </div>
+
+            <div id="tab-media" class="tab-content">
+                <div class="control-group">
+                    <h4>Branding Logo</h4>
+                    <div class="switch-wrap"><span>Tampilkan Logo</span><input type="checkbox" id="inp-show-logo"></div>
+                    <label>URL Logo</label>
+                    <input type="text" id="inp-logo" placeholder="https://...">
+                </div>
+
+                <div class="control-group" style="border: 1px solid #ff3333; background: #220000;">
+                    <h4 style="color:#ff5555;">⚠️ Blackout Control</h4>
+                    <div class="switch-wrap">
+                        <span style="font-weight:bold; color:white;">MODE BLACKOUT (Layar Mati)</span>
+                        <input type="checkbox" id="inp-blackout-mode">
+                    </div>
+                    <p style="font-size:0.8rem; color:#aaa; margin-bottom:15px;">Aktifkan saat sesi ceramah/khutbah agar jamaah fokus.</p>
+
+                    <div class="switch-wrap" style="border-top:1px solid #440000; paddingTop:10px;">
+                        <span>Tetap Tampilkan Jam saat Blackout?</span>
+                        <input type="checkbox" id="inp-blackout-clock" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-sticky">
+            <button class="btn-save" id="btn-sync">📡 SYNC KE PROYEKTOR</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // ===========================================
+        // UTILS
+        // ===========================================
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Highlight Tab Logic
+            const btns = document.querySelectorAll('.tab-btn');
+            const map = {'tab-visual':0, 'tab-clock':1, 'tab-text':2, 'tab-ai':3, 'tab-media':4};
+            if(map[tabId] !== undefined) btns[map[tabId]].classList.add('active');
+        };
+
+        window.toggleBgInput = () => {
+            const mode = document.getElementById('inp-bg-mode').value;
+            document.getElementById('grp-bg-color').style.display = mode === 'color' ? 'block' : 'none';
+            document.getElementById('grp-bg-url').style.display = mode === 'image' ? 'block' : 'none';
+            document.getElementById('grp-bg-preset').style.display = mode === 'preset' ? 'block' : 'none';
+        };
+
+        // Load AI Key from LocalStorage (Privacy)
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if(savedKey) document.getElementById('inp-ai-key').value = savedKey;
+
+        // ===========================================
+        // AI LOGIC (GEMINI)
+        // ===========================================
+        window.generateAI = async () => {
+            const key = document.getElementById('inp-ai-key').value;
+            const promptText = document.getElementById('inp-ai-prompt').value;
+            const statusEl = document.getElementById('ai-status');
+            const loader = document.getElementById('ai-loader');
+            const targetText = document.getElementById('inp-mq-text');
+
+            if(!key) { alert("Masukkan API Key Gemini dulu!"); return; }
+            if(!promptText) { alert("Masukkan Prompt perintah!"); return; }
+
+            localStorage.setItem('gemini_api_key', key); // Save for next time
+            
+            loader.style.display = 'inline-block';
+            statusEl.innerText = "Sedang berpikir... (Menghubungi Google AI)";
+            statusEl.style.color = "#00d4ff";
+
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+                const payload = {
+                    contents: [{
+                        parts: [{text: promptText + ". Outputkan hanya teks hasil jadinya saja, jangan pakai markdown, buat dalam satu paragraf panjang agar cocok untuk running text."}]
+                    }]
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                if(data.candidates && data.candidates[0].content) {
+                    const resultText = data.candidates[0].content.parts[0].text;
+                    // Clean up text
+                    targetText.value = resultText.replace(/\n/g, "  *** ");
+                    statusEl.innerText = "Sukses! Silakan klik tombol SYNC dibawah.";
+                    statusEl.style.color = "#00ffaa";
+                } else {
+                    throw new Error("Respon AI tidak valid");
+                }
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "Error: " + err.message;
+                statusEl.style.color = "#ff3333";
+            } finally {
+                loader.style.display = 'none';
+            }
+        };
+
+        // ===========================================
+        // ENGINE TAMPILAN
+        // ===========================================
+        function updateMarqueeEngine(text, speedVal) {
+            const mqItem1 = document.getElementById('mq-item-1');
+            const mqItem2 = document.getElementById('mq-item-2');
+            const mqTrack = document.getElementById('mq-track');
+            
+            // Sanitasi sederhana
+            mqItem1.textContent = text;
+            mqItem2.textContent = text;
+            
+            const textWidth = mqItem1.offsetWidth;
+            const screenWidth = window.innerWidth;
+            
+            // Kalkulasi Speed lebih cerdas
+            // SpeedVal dr input (10 - 500). Makin besar makin pelan.
+            // Rumus: Base duration * factor
+            let duration = (textWidth + screenWidth) * (speedVal / 1000);
+            if(duration < 5) duration = 5; 
+            
+            document.documentElement.style.setProperty('--mq-duration', `${duration}s`);
+            
+            // Reset Animation Trigger
+            mqTrack.style.animation = 'none';
+            mqTrack.offsetHeight; /* Trigger reflow */
+            mqTrack.style.animation = `scroll-left ${duration}s linear infinite`;
+        }
+
+        // ===========================================
+        // FIREBASE CONNECTION
+        // ===========================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoPT7JSD5N-p2V50PnozpAGvln64eREFI",
+            authDomain: "jamdigi-7f8a3.firebaseapp.com",
+            projectId: "jamdigi-7f8a3",
+            storageBucket: "jamdigi-7f8a3.firebasestorage.app",
+            messagingSenderId: "725447503980",
+            appId: "1:725447503980:web:2a7c472a35dc71dae3a849",
+            measurementId: "G-PESLX8VZ5W"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const DOC_ID = "v5_settings"; // Tetap menggunakan ID lama agar tidak perlu migrasi
+        const debugBox = document.getElementById('debug-indicator');
+
+        // --- RECEIVER (LAYAR) ---
+        onSnapshot(doc(db, "settings", DOC_ID), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                debugBox.innerText = "Synced: " + new Date().toLocaleTimeString();
+                applyConfig(data);
+                syncInputs(data);
+            }
+        });
+
+        // --- SENDER (ADMIN) ---
+        document.getElementById('btn-sync').addEventListener('click', async () => {
+            const btn = document.getElementById('btn-sync');
+            const originalText = btn.innerText;
+            btn.innerText = "Mengirim...";
+            btn.style.background = "#555";
+            
+            // Tentukan Background
+            let finalBg = '#000000';
+            const mode = document.getElementById('inp-bg-mode').value;
+            if(mode === 'color') finalBg = document.getElementById('inp-bg-color').value;
+            if(mode === 'preset') finalBg = document.getElementById('inp-bg-preset-val').value;
+            if(mode === 'image') finalBg = `url('${document.getElementById('inp-bg-url').value}')`;
+
+            const payload = {
+                // VISUAL
+                bgType: finalBg, 
+                bgModeState: mode, 
+                bgColorState: document.getElementById('inp-bg-color').value,
+                bgPresetState: document.getElementById('inp-bg-preset-val').value, // NEW
+                bgUrlState: document.getElementById('inp-bg-url').value,
+                textColor: document.getElementById('inp-text-color').value,
+                fontFamily: document.getElementById('inp-font').value,
+
+                // CLOCK
+                clockSize: document.getElementById('inp-clock-size').value,
+                clockGlow: document.getElementById('inp-clock-glow').value,
+
+                // INFO
+                titleText: document.getElementById('inp-title').value,
+                titleColor: document.getElementById('inp-title-color').value,
+                titleSize: document.getElementById('inp-title-size').value,
+                showTitle: document.getElementById('inp-show-title').checked,
+                
+                dateColor: document.getElementById('inp-date-color').value,
+                dateSize: document.getElementById('inp-date-size').value,
+                showDate: document.getElementById('inp-show-date').checked,
+
+                // MEDIA & TOOLS
+                logoUrl: document.getElementById('inp-logo').value,
+                showLogo: document.getElementById('inp-show-logo').checked,
+                
+                // BLACKOUT (NEW LOGIC)
+                isBlackout: document.getElementById('inp-blackout-mode').checked,
+                blackoutShowClock: document.getElementById('inp-blackout-clock').checked,
+
+                // MARQUEE
+                mqShow: document.getElementById('inp-mq-show').checked,
+                mqText: document.getElementById('inp-mq-text').value,
+                mqSpeed: document.getElementById('inp-mq-speed').value,
+                mqColor: document.getElementById('inp-mq-color').value,
+                mqBg: document.getElementById('inp-mq-bg').value,
+                mqSize: document.getElementById('inp-mq-size').value,
+                mqHeight: document.getElementById('inp-mq-height').value
+            };
+
+            try {
+                await setDoc(doc(db, "settings", DOC_ID), payload);
+                btn.innerText = "✅ TERSIMPAN!";
+                btn.style.background = "#28a745";
+                setTimeout(()=> {
+                    btn.innerText = originalText;
+                    btn.style.background = "linear-gradient(135deg, #007bff, #00d4ff)";
+                }, 2000);
+            } catch (e) {
+                alert("Gagal koneksi Firebase: " + e.message);
+                btn.innerText = "❌ ERROR";
+            }
+        });
+
+        // ===========================================
+        // LOGIC PENERAPAN (APPLY)
+        // ===========================================
+        function applyConfig(d) {
+            const root = document.documentElement.style;
+            const body = document.body;
+
+            // 1. Handling Blackout Mode (PRIORITY)
+            if (d.isBlackout) {
+                body.classList.add('blackout-active');
+                if (d.blackoutShowClock) {
+                    body.classList.add('show-clock-on-blackout');
+                } else {
+                    body.classList.remove('show-clock-on-blackout');
+                }
+            } else {
+                body.classList.remove('blackout-active');
+                body.classList.remove('show-clock-on-blackout');
+            }
+
+            // 2. Visual Dasar
+            root.setProperty('--bg-actual', d.bgType || '#000000');
+            root.setProperty('--text-color', d.textColor);
+            root.setProperty('--font-family', d.fontFamily);
+            
+            // 3. Clock
+            root.setProperty('--clock-size', d.clockSize + 'vw');
+            root.setProperty('--clock-glow', d.clockGlow + 'px');
+            
+            // 4. Title & Date
+            root.setProperty('--title-size', d.titleSize + 'vw');
+            root.setProperty('--title-color', d.titleColor);
+            document.getElementById('main-title').style.display = d.showTitle ? 'block' : 'none';
+            document.getElementById('main-title').innerText = d.titleText || "INSTANSI";
+
+            root.setProperty('--date-size', d.dateSize + 'vw');
+            root.setProperty('--date-color', d.dateColor);
+            document.getElementById('date').style.display = d.showDate ? 'block' : 'none';
+
+            // 5. Logo
+            const logo = document.getElementById('logo-img');
+            logo.style.display = d.showLogo && d.logoUrl ? 'block' : 'none';
+            logo.src = d.logoUrl;
+
+            // 6. Marquee (Running Text)
+            const mqContainer = document.getElementById('mq-container');
+            if (d.mqShow) {
+                mqContainer.style.display = 'flex';
+                // Jika sedang blackout, marquee otomatis tersembunyi lewat CSS, tapi kita set value propertynya
+                root.setProperty('--mq-bg', d.mqBg);
+                root.setProperty('--mq-color', d.mqColor);
+                root.setProperty('--mq-size', d.mqSize / 10 + 'vw');
+                root.setProperty('--mq-height', d.mqHeight + 'vh');
+                updateMarqueeEngine(d.mqText || "Selamat Datang...", d.mqSpeed);
+            } else {
+                mqContainer.style.display = 'none';
+            }
+        }
+
+        // ===========================================
+        // SYNC INPUTS (AGAR ADMIN SAMA DENGAN LAYAR)
+        // ===========================================
+        function syncInputs(d) {
+            // Block loopback jika sedang mengetik (opsional, tapi aman begini)
+            if(document.activeElement.tagName === "TEXTAREA" || document.activeElement.tagName === "INPUT") return;
+
+            // Visual
+            if(d.bgModeState) document.getElementById('inp-bg-mode').value = d.bgModeState;
+            if(d.bgPresetState) document.getElementById('inp-bg-preset-val').value = d.bgPresetState;
+            document.getElementById('inp-bg-color').value = d.bgColorState;
+            document.getElementById('inp-bg-url').value = d.bgUrlState;
+            toggleBgInput();
+            document.getElementById('inp-text-color').value = d.textColor;
+            document.getElementById('inp-font').value = d.fontFamily;
+            
+            // Clock
+            document.getElementById('inp-clock-size').value = d.clockSize;
+            document.getElementById('inp-clock-glow').value = d.clockGlow;
+            
+            // Info
+            document.getElementById('inp-title').value = d.titleText;
+            document.getElementById('inp-title-color').value = d.titleColor;
+            document.getElementById('inp-title-size').value = d.titleSize;
+            document.getElementById('inp-show-title').checked = d.showTitle;
+            
+            document.getElementById('inp-date-color').value = d.dateColor;
+            document.getElementById('inp-date-size').value = d.dateSize;
+            document.getElementById('inp-show-date').checked = d.showDate;
+            
+            // Media & Blackout
+            document.getElementById('inp-logo').value = d.logoUrl;
+            document.getElementById('inp-show-logo').checked = d.showLogo;
+            document.getElementById('inp-blackout-mode').checked = d.isBlackout; // Sync Checkbox
+            document.getElementById('inp-blackout-clock').checked = d.blackoutShowClock;
+            
+            // Marquee
+            document.getElementById('inp-mq-show').checked = d.mqShow;
+            document.getElementById('inp-mq-text').value = d.mqText;
+            document.getElementById('inp-mq-speed').value = d.mqSpeed;
+            document.getElementById('inp-mq-color').value = d.mqColor;
+            document.getElementById('inp-mq-bg').value = d.mqBg;
+            document.getElementById('inp-mq-size').value = d.mqSize;
+            document.getElementById('inp-mq-height').value = d.mqHeight;
+        }
+
+        // ===========================================
+        // CLOCK INTERNAL
+        // ===========================================
+        function runClock() {
+            const now = new Date();
+            // Format HH:MM:SS
+            const timeStr = now.toLocaleTimeString('id-ID', {hour12: false});
+            document.getElementById('clock').innerText = timeStr;
+            
+            // Format Tanggal (Update tiap detik 0)
+            if(now.getSeconds() === 0) {
+                 const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                 document.getElementById('date').innerText = now.toLocaleDateString('id-ID', dateOptions);
+            }
+        }
+        setInterval(runClock, 1000);
+        runClock(); // First run
+
+        // Admin Auth Sederhana
+        document.getElementById('open-admin').addEventListener('click', () => {
+             const p = prompt("PIN GOD MODE:");
+             if(p === "1234") document.getElementById('admin-panel').style.display = 'block';
+        });
+
+    </script>
+</body>
+</html>
