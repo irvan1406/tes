@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Clock v6.1 - AI Fixed</title>
+    <title>Ultimate Clock v8 - AUTO AI</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -227,6 +227,7 @@
             border: none; padding: 12px; border-radius: 6px; color: white; font-weight: bold; cursor: pointer;
         }
         .btn-ai-gen:hover { filter: brightness(1.2); }
+        .btn-reset-key { background: #333; color: #ff5555; border:1px solid #ff5555; padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; margin-top: 5px;}
 
         #debug-indicator { position: fixed; bottom: 90px; right: 10px; color: #00ffaa; font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 20px; pointer-events: none; z-index: 800; }
         
@@ -238,7 +239,7 @@
 </head>
 <body>
 
-    <div id="debug-indicator">System v6.1 Ready</div>
+    <div id="debug-indicator">System v8 (Auto AI)</div>
 
     <div class="main-content">
         <img id="logo-img" src="" alt="Logo">
@@ -259,8 +260,8 @@
     <div id="admin-panel">
         <div class="admin-header">
             <div>
-                <h2 style="color:white; font-size: 1.2rem;">🎛️ Ultimate Control v6</h2>
-                <small style="color:#666;">God Mode Edition (Fixed)</small>
+                <h2 style="color:white; font-size: 1.2rem;">🎛️ Ultimate Control v8</h2>
+                <small style="color:#666;">God Mode (Auto-Pilot)</small>
             </div>
             <button onclick="document.getElementById('admin-panel').style.display='none'" style="background:transparent; border:none; color:#aaa; font-size:1.5rem; cursor:pointer;">✕</button>
         </div>
@@ -392,27 +393,24 @@
 
             <div id="tab-ai" class="tab-content">
                 <div class="control-group" style="border: 1px solid #8e2de2; background: #130a1f;">
-                    <h4>🧠 Gemini AI Generator (V6.1)</h4>
-                    <p style="font-size: 0.8rem; color:#ccc; margin-bottom:10px;">Gunakan AI untuk membuat kata-kata Running Text secara otomatis.</p>
+                    <h4>🧠 Gemini AI (Auto-Pilot)</h4>
+                    <p style="font-size: 0.8rem; color:#ccc; margin-bottom:10px;">
+                        Sistem otomatis mencari model AI yang aktif. Cukup masukkan key dan prompt.
+                    </p>
                     
                     <label>API Key Gemini (Wajib)</label>
-                    <input type="password" id="inp-ai-key" placeholder="Paste API Key Gemini Anda di sini...">
-                    <small style="color:#666;">*Disimpan lokal di browser Anda.</small>
-
-                    <label>Pilih Model AI (Coba ganti jika error)</label>
-                    <select id="inp-ai-model">
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (Cepat/Gratis)</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Lebih Pintar)</option>
-                        <option value="gemini-pro">Gemini Pro (Legacy)</option>
-                    </select>
+                    <div style="display:flex; gap:5px;">
+                        <input type="password" id="inp-ai-key" placeholder="Paste API Key Gemini Anda di sini...">
+                        <button class="btn-reset-key" onclick="resetAIKey()">🗑️</button>
+                    </div>
 
                     <label>Perintah Prompt</label>
                     <textarea id="inp-ai-prompt" placeholder="Contoh: Buatkan hadits pendek tentang kebersihan." style="height:80px;"></textarea>
 
-                    <button class="btn-ai-gen" onclick="generateAI()">
-                        <div class="loader" id="ai-loader"></div> ✨ Generate Text via AI
+                    <button class="btn-ai-gen" onclick="autoGenerateAI()">
+                        <div class="loader" id="ai-loader"></div> ✨ GENERATE TEXT
                     </button>
-                    <div id="ai-status" style="margin-top:10px; font-size:0.85rem; padding:5px; border-radius:4px;"></div>
+                    <div id="ai-status" style="margin-top:10px; font-size:0.85rem; padding:8px; border-radius:4px; border:1px dashed #444; word-wrap:break-word;"></div>
                 </div>
             </div>
 
@@ -471,81 +469,110 @@
         const savedKey = localStorage.getItem('gemini_api_key');
         if(savedKey) document.getElementById('inp-ai-key').value = savedKey;
 
+        window.resetAIKey = () => {
+            if(confirm("Hapus key tersimpan?")) {
+                localStorage.removeItem('gemini_api_key');
+                document.getElementById('inp-ai-key').value = '';
+                alert("Key dihapus. Silakan masukkan key baru.");
+            }
+        };
+
         // ===========================================
-        // AI LOGIC (GEMINI) - IMPROVED ERROR HANDLING
+        // AI LOGIC (AUTO-PILOT) - NO MANUAL SELECTION
         // ===========================================
-        window.generateAI = async () => {
+        // Sistem akan mencoba daftar ini satu per satu sampai berhasil
+        const MODELS_TO_TRY = [
+            'gemini-1.5-flash', 
+            'gemini-1.5-pro',
+            'gemini-1.0-pro',
+            'gemini-pro'
+        ];
+
+        window.autoGenerateAI = async () => {
             const key = document.getElementById('inp-ai-key').value.trim();
-            const model = document.getElementById('inp-ai-model').value;
             const promptText = document.getElementById('inp-ai-prompt').value;
             const statusEl = document.getElementById('ai-status');
             const loader = document.getElementById('ai-loader');
             const targetText = document.getElementById('inp-mq-text');
 
-            statusEl.innerText = "";
-            statusEl.style.background = "transparent";
-
             if(!key) { alert("Masukkan API Key Gemini dulu!"); return; }
             if(!promptText) { alert("Masukkan Prompt perintah!"); return; }
 
-            localStorage.setItem('gemini_api_key', key); // Save for next time
-            
+            localStorage.setItem('gemini_api_key', key);
             loader.style.display = 'inline-block';
-            statusEl.innerText = "Sedang berpikir... (Menghubungi Google AI)";
+            statusEl.style.background = "transparent";
+            statusEl.innerText = "🔍 Mencari server AI yang aktif...";
             statusEl.style.color = "#00d4ff";
 
-            try {
-                // Construct URL with selected model
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-                
-                const payload = {
-                    contents: [{
-                        parts: [{text: promptText + ". Jawab dalam Bahasa Indonesia. Outputkan hanya teks hasil jadinya saja tanpa pembuka/penutup. Jangan pakai markdown (bold/italic). Buat dalam satu paragraf panjang menyambung agar cocok untuk running text marquee."}]
-                    }]
-                };
+            let success = false;
+            let lastError = "";
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-
-                // Cek Error Level HTTP (400, 403, 500)
-                if (!response.ok) {
-                    const errData = await response.json();
-                    let errMsg = errData.error?.message || "Unknown Error";
+            // LOOPING OTOMATIS
+            for (const model of MODELS_TO_TRY) {
+                try {
+                    // Coba model ini
+                    const result = await tryFetchModel(key, model, promptText);
                     
-                    // Terjemahkan error umum Google ke Bahasa Manusia
-                    if(errMsg.includes("API key not valid")) errMsg = "API Key Salah / Tidak Valid";
-                    if(errMsg.includes("Quota exceeded")) errMsg = "Kuota API Habis (Tunggu sebentar)";
-                    if(errMsg.includes("not found")) errMsg = "Model AI tidak support di akun ini, coba ganti model.";
-                    
-                    throw new Error(errMsg);
-                }
-
-                const data = await response.json();
-                
-                if(data.candidates && data.candidates[0].content) {
-                    const resultText = data.candidates[0].content.parts[0].text;
-                    // Bersihkan sisa markdown jika ada
-                    const cleanText = resultText.replace(/\*/g, "").replace(/\n/g, "  *** ").trim();
-                    targetText.value = cleanText;
-                    
-                    statusEl.innerText = "✅ SUKSES! Silakan klik tombol SYNC dibawah.";
+                    // Jika berhasil masuk sini
+                    targetText.value = result;
+                    statusEl.innerText = `✅ SUKSES! (Menggunakan ${model})`;
                     statusEl.style.color = "#00ffaa";
                     statusEl.style.background = "rgba(0, 255, 0, 0.1)";
-                } else {
-                    throw new Error("Format respon AI tidak dikenali.");
+                    success = true;
+                    break; // Keluar dari loop karena sudah berhasil
+                } catch (e) {
+                    console.log(`Model ${model} gagal, mencoba yang lain...`);
+                    lastError = e.message;
+                    // Lanjut ke model berikutnya di list
                 }
-            } catch (err) {
-                console.error(err);
-                statusEl.innerText = "❌ GAGAL: " + err.message;
+            }
+
+            if (!success) {
+                statusEl.innerText = "❌ GAGAL. Semua model menolak.";
                 statusEl.style.color = "#ffcccc";
                 statusEl.style.background = "rgba(255, 0, 0, 0.2)";
-            } finally {
-                loader.style.display = 'none';
+                alert("Error: API Key Anda valid, tapi Google menolak permintaan. Cek kuota API atau koneksi internet.");
             }
+            
+            loader.style.display = 'none';
         };
+
+        // Fungsi Helper untuk mencoba satu model
+        async function tryFetchModel(key, model, prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{text: prompt + ". (Instruksi: Jawab Bahasa Indonesia. Singkat. Tanpa Markdown. Tanpa Kutip. Satu baris panjang)."}]
+                }],
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                ]
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error("HTTP Error");
+            }
+
+            const data = await response.json();
+
+            if(data.candidates && data.candidates[0].content) {
+                let txt = data.candidates[0].content.parts[0].text;
+                // Bersih-bersih teks
+                return txt.replace(/\*/g, "").replace(/["']/g, "").replace(/\n/g, "  *** ").trim();
+            } else {
+                throw new Error("No Content");
+            }
+        }
 
         // ===========================================
         // ENGINE TAMPILAN
@@ -555,23 +582,17 @@
             const mqItem2 = document.getElementById('mq-item-2');
             const mqTrack = document.getElementById('mq-track');
             
-            // Sanitasi sederhana
             mqItem1.textContent = text;
             mqItem2.textContent = text;
             
             const textWidth = mqItem1.offsetWidth;
             const screenWidth = window.innerWidth;
-            
-            // Kalkulasi Speed lebih cerdas
-            // SpeedVal dr input (10 - 500). Makin besar makin pelan.
             let duration = (textWidth + screenWidth) * (speedVal / 1000);
             if(duration < 5) duration = 5; 
             
             document.documentElement.style.setProperty('--mq-duration', `${duration}s`);
-            
-            // Reset Animation Trigger
             mqTrack.style.animation = 'none';
-            mqTrack.offsetHeight; /* Trigger reflow */
+            mqTrack.offsetHeight; 
             mqTrack.style.animation = `scroll-left ${duration}s linear infinite`;
         }
 
@@ -593,7 +614,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const DOC_ID = "v5_settings"; // Tetap menggunakan ID lama agar tidak perlu migrasi
+        const DOC_ID = "v5_settings"; 
         const debugBox = document.getElementById('debug-indicator');
 
         // --- RECEIVER (LAYAR) ---
@@ -613,7 +634,6 @@
             btn.innerText = "Mengirim...";
             btn.style.background = "#555";
             
-            // Tentukan Background
             let finalBg = '#000000';
             const mode = document.getElementById('inp-bg-mode').value;
             if(mode === 'color') finalBg = document.getElementById('inp-bg-color').value;
@@ -648,7 +668,7 @@
                 logoUrl: document.getElementById('inp-logo').value,
                 showLogo: document.getElementById('inp-show-logo').checked,
                 
-                // BLACKOUT (NEW LOGIC)
+                // BLACKOUT
                 isBlackout: document.getElementById('inp-blackout-mode').checked,
                 blackoutShowClock: document.getElementById('inp-blackout-clock').checked,
 
@@ -724,7 +744,6 @@
             const mqContainer = document.getElementById('mq-container');
             if (d.mqShow) {
                 mqContainer.style.display = 'flex';
-                // Jika sedang blackout, marquee otomatis tersembunyi lewat CSS, tapi kita set value propertynya
                 root.setProperty('--mq-bg', d.mqBg);
                 root.setProperty('--mq-color', d.mqColor);
                 root.setProperty('--mq-size', d.mqSize / 10 + 'vw');
@@ -786,23 +805,20 @@
         // ===========================================
         function runClock() {
             const now = new Date();
-            // Format HH:MM:SS
             const timeStr = now.toLocaleTimeString('id-ID', {hour12: false});
             document.getElementById('clock').innerText = timeStr;
             
-            // Format Tanggal (Update tiap detik 0)
             if(now.getSeconds() === 0) {
                  const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                  document.getElementById('date').innerText = now.toLocaleDateString('id-ID', dateOptions);
             }
         }
         setInterval(runClock, 1000);
-        runClock(); // First run
+        runClock(); 
 
-        // Admin Auth Sederhana
         document.getElementById('open-admin').addEventListener('click', () => {
-             const p = prompt("PIN GOD MODE:");
-             if(p === "1234") document.getElementById('admin-panel').style.display = 'block';
+             const p = prompt("PIN IRVAN MODE:");
+             if(p === "1111") document.getElementById('admin-panel').style.display = 'block';
         });
 
     </script>
